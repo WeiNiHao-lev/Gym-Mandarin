@@ -15,19 +15,24 @@ Berupa PWA (Progressive Web App) — bisa di-*install* di **laptop dan HP**, jal
 
 ---
 
-## 📱 Cara Memakai di HP
+## 📱 Install di HP (lewat GitHub Pages — cara utama)
 
-Karena data tersimpan lokal per-perangkat, ada 2 pilihan:
+Untuk bisa benar-benar di-*install* di HP, aplikasi perlu alamat **HTTPS**. Caranya gampang:
 
-**A. Install langsung (paling praktis untuk install di HP):**
-- Upload folder ini ke hosting statis gratis (mis. **Netlify Drop** — tarik folder ke app.netlify.com/drop, atau **GitHub Pages**). Buka link HTTPS-nya di HP.
-- **Android (Chrome):** menu ⋮ → *Tambahkan ke layar utama*.
-- **iPhone (Safari):** tombol Share → *Add to Home Screen*.
+1. **Double-click [`deploy-github.bat`](deploy-github.bat).** Skrip akan:
+   - login ke GitHub (sekali saja, lewat browser),
+   - membuat repo + mengaktifkan **GitHub Pages**,
+   - menampilkan link aplikasimu, mis. `https://NAMAUSER.github.io/Gym-Mandarin/`.
+2. Tunggu 1–2 menit (build pertama), lalu **buka link itu di HP**:
+   - **Android (Chrome):** menu ⋮ → *Tambahkan ke layar utama / Install*.
+   - **iPhone (Safari):** tombol Share → *Add to Home Screen*.
+3. Buka juga di laptop dan klik **Install** — beres, satu link untuk semua perangkat.
 
-**B. Lewat jaringan WiFi yang sama** (tanpa hosting):
-- Jalankan `start-app.bat` di laptop, cari IP laptop (`ipconfig`), buka `http://IP-LAPTOP:8765/index.html` di HP. *(Catatan: install PWA penuh di Android butuh HTTPS, jadi cara A lebih disarankan untuk install.)*
+> Repo dibuat **publik** (syarat GitHub Pages gratis). Aman: yang ada di repo hanya *kode aplikasi* — data latihan/berat/kalori kamu tersimpan di browser masing-masing perangkat, tidak ikut ter-upload.
+>
+> **Update aplikasi nanti:** cukup jalankan `deploy-github.bat` lagi.
 
-**Pindah data antar perangkat:** menu **⚙️ Atur → Backup Data → Export**, lalu **Import** file `.json` itu di perangkat lain.
+**Pindah data antar perangkat:** menu **⚙️ Atur → Backup Data → Export**, lalu **Import** file `.json` itu di perangkat lain (data tersimpan lokal per-perangkat).
 
 ---
 
