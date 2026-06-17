@@ -143,6 +143,23 @@ function toast(msg) {
 }
 function esc(s) { return (s || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 
+/* ---------------- PELAFALAN (TTS) ---------------- */
+let zhVoice = null;
+function loadVoices() {
+  if (!("speechSynthesis" in window)) return;
+  const vs = speechSynthesis.getVoices();
+  zhVoice = vs.find(v => /^zh/i.test(v.lang)) || vs.find(v => /chinese|中文|普通话|mandarin/i.test(v.name)) || null;
+}
+if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function speak(text) {
+  if (!("speechSynthesis" in window)) { toast("Browser tidak mendukung suara"); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "zh-CN"; u.rate = 0.85;
+  if (zhVoice) u.voice = zhVoice;
+  speechSynthesis.speak(u);
+}
+
 /* ============================================================
    BERANDA
    ============================================================ */
@@ -261,12 +278,16 @@ function renderFlashcard() {
       <div class="flash-inner">
         <div class="flash-face flash-front">
           <span class="flash-badge">HSK ${v.l}</span>
-          <button class="flash-star" onclick="event.stopPropagation();toggleStar('${v.id}')">${st.star ? "⭐" : "☆"}</button>
+          <div style="position:absolute;top:11px;right:12px;display:flex;gap:6px">
+            <button class="flash-star" style="position:static" onclick="event.stopPropagation();speak('${v.h}')">🔊</button>
+            <button class="flash-star" style="position:static" onclick="event.stopPropagation();toggleStar('${v.id}')">${st.star ? "⭐" : "☆"}</button>
+          </div>
           <div class="flash-hanzi">${v.h}</div>
           <div class="flash-hint">ketuk untuk lihat arti</div>
         </div>
         <div class="flash-face flash-back">
           <span class="flash-badge">HSK ${v.l}</span>
+          <button class="flash-star" style="position:absolute;top:11px;right:12px" onclick="event.stopPropagation();speak('${v.h}')">🔊</button>
           <div class="flash-pinyin">${v.p}</div>
           <div class="flash-arti">${esc(v.a)}</div>
           ${v.c ? `<div class="flash-contoh">${esc(v.c)}</div>` : ""}
@@ -322,7 +343,9 @@ function renderDailyVocab() {
     ${kata.map((v, i) => `
       <div class="card tight">
         <div class="row spread">
-          <div><b style="font-size:22px">${v.h}</b> <span style="color:var(--accent2)">${v.p}</span> <span class="tag hsk${v.l}">HSK${v.l}</span></div>
+          <div><b style="font-size:22px">${v.h}</b> <span style="color:var(--accent2)">${v.p}</span>
+            <button class="btn xs ghost" onclick="speak('${v.h}')">🔊</button>
+            <span class="tag hsk${v.l}">HSK${v.l}</span></div>
           <span class="muted small">#${i + 1}</span>
         </div>
         <div class="small muted mb">${esc(v.a)}${v.c ? " · " + esc(v.c) : ""}</div>
@@ -438,6 +461,7 @@ function renderDaftar() {
           <div><small>${esc(v.a)}</small></div>
         </div>
         <div class="row">
+          <button class="btn xs ghost" onclick="speak('${v.h}')">🔊</button>
           <button class="btn xs ghost" onclick="toggleStar2('${v.id}')">${s.star ? "⭐" : "☆"}</button>
           <span class="tag" style="color:${s.status === "hafal" ? "var(--green)" : s.status === "belajar" ? "var(--accent2)" : "var(--muted)"}">${s.status}</span>
         </div>

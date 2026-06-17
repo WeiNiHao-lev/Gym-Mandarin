@@ -51,20 +51,26 @@ if ($remotes -notcontains 'origin') {
   git push -u origin main
 }
 
-# 6) Aktifkan GitHub Pages (branch main, folder root)
-Write-Host "Mengaktifkan GitHub Pages..." -ForegroundColor Yellow
-'{"source":{"branch":"main","path":"/"}}' | gh api --method POST "repos/$owner/$repo/pages" --input -
+# 6) Deploy OTOMATIS via GitHub Actions (.github/workflows/deploy.yml)
+#    Push di atas sudah memicu workflow. Pastikan workflow jalan:
+Write-Host "GitHub Actions sedang build & deploy otomatis..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3
+gh workflow run "deploy.yml" 2>$null
 
 # 7) Selesai
 $url = "https://$owner.github.io/$repo/"
+$actions = "https://github.com/$owner/$repo/actions"
 Write-Host ""
 Write-Host "==================================================" -ForegroundColor Green
-Write-Host " SELESAI! Aplikasi kamu live di:"                  -ForegroundColor Green
-Write-Host "   $url"                                           -ForegroundColor Green
+Write-Host " SELESAI! Setelah build pertama selesai (~1-3 mnt)," -ForegroundColor Green
+Write-Host " aplikasi kamu live di:"                            -ForegroundColor Green
+Write-Host "   $url"                                            -ForegroundColor Green
 Write-Host ""
-Write-Host " > Tunggu ~1-2 menit untuk build pertama."         -ForegroundColor Green
-Write-Host " > Buka link itu di HP & laptop, lalu klik Install."-ForegroundColor Green
-Write-Host " > Mau update aplikasi nanti? Jalankan file ini lagi." -ForegroundColor Green
+Write-Host " > Cek status build: $actions"                      -ForegroundColor Green
+Write-Host " > Buka link di HP & laptop, lalu klik Install."    -ForegroundColor Green
+Write-Host " > AUTO-DEPLOY: tiap kali file ini dijalankan lagi" -ForegroundColor Green
+Write-Host "   (atau ada push), aplikasi otomatis ter-update."  -ForegroundColor Green
 Write-Host "==================================================" -ForegroundColor Green
+Start-Process $actions
 Start-Process $url
 Read-Host "Tekan Enter untuk menutup"

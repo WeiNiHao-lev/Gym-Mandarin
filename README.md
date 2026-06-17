@@ -39,7 +39,8 @@ Untuk bisa benar-benar di-*install* di HP, aplikasi perlu alamat **HTTPS**. Cara
 ## ✨ Fitur
 
 ### 中 Mandarin
-- **Flashcard acak** HSK 1–4 (filter per level), ketuk untuk lihat pinyin + arti + contoh.
+- **Flashcard acak** HSK 1–4 (~380 kosakata, filter per level), ketuk untuk lihat pinyin + arti + contoh.
+- **🔊 Pelafalan suara** (text-to-speech Mandarin) di flashcard & daftar kata — ketuk ikon speaker untuk dengar cara baca.
 - **Target harian:** belajar 10 kosakata baru + tulis 1 kalimat untuk tiap kata. Ada **streak 🔥**.
 - **Materi:** simpan catatan/grammar.
 - **Daftar kata:** cari, tandai favorit ⭐, tambah kosakata sendiri.
