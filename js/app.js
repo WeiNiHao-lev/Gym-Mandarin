@@ -179,7 +179,8 @@ function speak(text) {
    BERANDA
    ============================================================ */
 function renderHome() {
-  const tk = todayKey(), hari = new Date().getDay(), prog = PROGRAM[hari];
+  const tk = todayKey(), hari = new Date().getDay();
+  const prog = PROGRAM_LIB[progKeyFor(tk, hari)] || PROGRAM[hari];
   const w = DB.workouts[tk] || {};
   const durasi = w.durasi || 0;
   const d = DB.daily[tk] || {};
@@ -189,7 +190,7 @@ function renderHome() {
 
   const c = document.getElementById("homeContent");
   c.innerHTML = `
-    <div class="card" style="background:linear-gradient(160deg,#7f1d1d,#1e293b)">
+    <div class="card" style="background:linear-gradient(160deg,#cfe4fb,#e6f4f1)">
       <div class="row spread">
         <div>
           <div class="muted small">Latihan hari ini</div>
@@ -225,7 +226,7 @@ function renderHome() {
       <h3>📉 Progres Minggu Ini</h3>
       <div class="stat-grid">
         <div><div class="muted small">Berat awal</div><div class="stat-big" style="font-size:22px">${minggu.beratAwal}<span class="stat-unit">kg</span></div></div>
-        <div><div class="muted small">Estimasi</div><div class="stat-big" style="font-size:22px;color:var(--accent2)">${minggu.estimasi}<span class="stat-unit">kg</span></div></div>
+        <div><div class="muted small">Estimasi</div><div class="stat-big" style="font-size:22px;color:var(--accent)">${minggu.estimasi}<span class="stat-unit">kg</span></div></div>
         <div><div class="muted small">Aktual</div><div class="stat-big" style="font-size:22px">${minggu.aktual ?? "–"}<span class="stat-unit">${minggu.aktual ? "kg" : ""}</span></div></div>
       </div>
       <div class="small muted mt">Olahraga minggu ini: <b style="color:var(--text)">${minggu.totalDurasi} menit</b> · Hari kerja ke-${weekDates(mondayOf(new Date())).filter(x => x <= todayKey()).length} · ${hari === 0 ? "Hari ini timbang berat badan! ⚖️" : "Timbang BB tiap Minggu"}</div>
@@ -254,14 +255,17 @@ function renderMandarin() {
 
 function renderLevelFilter() {
   const f = document.getElementById("levelFilter");
+  const count = allVocab().filter(v => DB.flashLevels.includes(v.l)).length;
   f.innerHTML = [1, 2, 3, 4].map(l =>
     `<button class="lvl-chip ${DB.flashLevels.includes(l) ? "on" : ""}" onclick="toggleLevel(${l})">HSK ${l}</button>`
-  ).join("");
+  ).join("") + `<span class="small muted" style="margin-left:auto;font-weight:700">${count} kata aktif</span>`;
 }
 function toggleLevel(l) {
   const i = DB.flashLevels.indexOf(l);
-  if (i >= 0) { if (DB.flashLevels.length > 1) DB.flashLevels.splice(i, 1); }
-  else DB.flashLevels.push(l);
+  if (i >= 0) {
+    if (DB.flashLevels.length > 1) DB.flashLevels.splice(i, 1);
+    else { toast("Minimal 1 level harus aktif"); return; }
+  } else DB.flashLevels.push(l);
   save(); renderLevelFilter(); renderFlashcard();
 }
 
@@ -339,7 +343,7 @@ function renderDailyVocab() {
       <div class="card center">
         <h3 style="justify-content:center">📚 Target Harian</h3>
         <p class="small muted">Belajar <b style="color:var(--text)">10 kosakata baru</b> lalu buat <b style="color:var(--text)">1 kalimat</b> untuk tiap kata. Selesaikan tiap hari untuk jaga streak 🔥</p>
-        <div class="small muted mt mb">🔥 Streak saat ini: <b style="color:var(--accent2)">${DB.streak.mandarin} hari</b></div>
+        <div class="small muted mt mb">🔥 Streak saat ini: <b style="color:var(--accent)">${DB.streak.mandarin} hari</b></div>
         <button class="btn full" onclick="mulaiHarian()">Mulai 10 Kosakata Baru</button>
       </div>`;
     return;
@@ -358,14 +362,16 @@ function renderDailyVocab() {
     ${kata.map((v, i) => `
       <div class="card tight">
         <div class="row spread">
-          <div><b style="font-size:22px">${v.h}</b> <span style="color:var(--accent2)">${v.p}</span>
+          <div><b style="font-size:22px">${v.h}</b> <span style="color:var(--accent)">${v.p}</span>
             <button class="btn xs ghost" onclick="speak('${v.h}')">🔊</button>
             <span class="tag hsk${v.l}">HSK${v.l}</span></div>
           <span class="muted small">#${i + 1}</span>
         </div>
         <div class="small muted mb">${esc(v.a)}${v.c ? " · " + esc(v.c) : ""}</div>
-        <input placeholder="Tulis kalimatmu dengan ${v.h}..." value="${esc(d.kalimat[v.id] || "")}"
-          oninput="simpanKalimat('${v.id}', this.value)">
+        <textarea id="kal_${v.id}" placeholder="Tulis kalimatmu dengan ${v.h}..." style="min-height:46px"
+          oninput="simpanKalimat('${v.id}', this.value)">${esc(d.kalimat[v.id] || "")}</textarea>
+        <div class="row mt"><button class="btn sm sec" onclick="periksaKalimat('${v.id}','${v.h}')">🔍 Periksa grammar</button></div>
+        <div id="rev_${v.id}"></div>
       </div>`).join("")}
     <button class="btn full green mt" onclick="selesaikanHarian()">${d.done ? "✓ Sudah selesai — Perbarui" : "Selesaikan Target Hari Ini"}</button>
     <button class="btn full ghost mt" onclick="if(confirm('Ganti dengan 10 kata baru lain?')){mulaiHarian(true)}">Ganti kata</button>
@@ -380,6 +386,47 @@ function mulaiHarian(force) {
   DB.daily[tk] = { vocabIds: shuffled.map(v => v.id), kalimat: {}, done: false };
   shuffled.forEach(v => { vp(v.id).status = vp(v.id).status === "baru" ? "belajar" : vp(v.id).status; });
   save(); renderDailyVocab();
+}
+/* ---------- REVIEW KALIMAT (pemeriksa grammar heuristik) ---------- */
+const ADJ_COMMON = ["高","大","小","好","忙","累","贵","便宜","漂亮","快","慢","新","旧","热","冷","胖","瘦","难","重要","聪明","年轻","干净","安静","近","远","长","甜","饿","渴","饱","开心","高兴"];
+function reviewSentence(text, target) {
+  text = (text || "").trim();
+  const r = { ok: [], warn: [], err: [] };
+  if (!text) { r.err.push("Kalimat masih kosong."); return r; }
+  const hanziCount = (text.match(/[一-鿿]/g) || []).length;
+  // 1. memakai kata target
+  if (target && !text.includes(target)) r.err.push(`Belum memakai kata「${target}」di kalimat.`);
+  else if (target) r.ok.push(`Kata「${target}」sudah dipakai.`);
+  // 2. panjang
+  if (hanziCount < 4) r.warn.push("Kalimat agak pendek — coba lengkapi (subjek + predikat/objek).");
+  else r.ok.push(`Panjang cukup (${hanziCount} karakter).`);
+  // 3. tanda baca akhir
+  if (!/[。！？!?]$/.test(text)) r.warn.push("Tambahkan tanda baca penutup: 。 ？ atau ！");
+  else r.ok.push("Ada tanda baca penutup.");
+  // 4. campur huruf latin (abaikan isi dalam kurung)
+  if (/[a-zA-Z]/.test(text.replace(/\([^)]*\)/g, "").replace(/（[^）]*）/g, ""))) r.warn.push("Ada huruf Latin — usahakan tulis penuh dengan hanzi.");
+  // 5. pola yang sering keliru
+  if (/很是|是很/.test(text)) r.err.push("「很」+「是」biasanya tak digabung.「很」untuk sifat (我很忙),「是」untuk identitas (我是学生).");
+  if (/了了|的的|很很|不不/.test(text)) r.err.push("Ada karakter dobel yang janggal (mis. 了了 / 的的).");
+  for (const a of ADJ_COMMON) { if (text.includes("是" + a)) { r.err.push(`Untuk sifat pakai「很」bukan「是」: mis. 我很${a}（bukan 我是${a}）.`); break; } }
+  if (/没\S*了/.test(text)) r.warn.push("Cek lagi:「没」+「了」jarang dipakai bersama (没去了 ❌ → 没去 / 不去了).");
+  if (/[一二三四五六七八九两](人|书|猫|狗|车|苹果)/.test(text)) r.warn.push("Setelah angka biasanya ada kata bantu bilangan (量词): mis. 三个人, 一本书, 两只猫.");
+  if (/^[一-鿿]*吗[。.]?$/.test(text) && !/[？?]$/.test(text)) r.warn.push("Kalimat dengan「吗」sebaiknya diakhiri tanda tanya ？");
+  return r;
+}
+function periksaKalimat(id, hanzi) {
+  const live = document.getElementById("kal_" + id);
+  const d = DB.daily[todayKey()];
+  const text = (live ? live.value : "") || (d && d.kalimat[id]) || "";
+  const r = reviewSentence(text, hanzi);
+  const box = document.getElementById("rev_" + id);
+  if (!box) return;
+  const lines = []
+    .concat(r.err.map(m => `<div class="r-line r-err">✕ ${esc(m)}</div>`))
+    .concat(r.warn.map(m => `<div class="r-line r-warn">▲ ${esc(m)}</div>`))
+    .concat(r.ok.map(m => `<div class="r-line r-ok">✓ ${esc(m)}</div>`));
+  const verdict = r.err.length ? "Perlu perbaikan ✍️" : (r.warn.length ? "Hampir oke 👍" : "Bagus sekali! 🎉");
+  box.innerHTML = `<div class="review-box"><b>${verdict}</b>${lines.join("")}<div class="small muted mt">Catatan: pemeriksa dasar (struktur & pola umum). Untuk koreksi grammar mendalam, fitur AI bisa ditambah.</div></div>`;
 }
 function simpanKalimat(id, val) {
   const d = DB.daily[todayKey()]; if (!d) return;
@@ -471,14 +518,14 @@ function renderDaftar() {
       const s = vp(v.id);
       return `<div class="litem">
         <div class="grow">
-          <b style="font-size:18px">${v.h}</b> <span style="color:var(--accent2)">${v.p}</span>
+          <b style="font-size:18px">${v.h}</b> <span style="color:var(--accent)">${v.p}</span>
           <span class="tag hsk${v.l}">HSK${v.l}</span>
           <div><small>${esc(v.a)}</small></div>
         </div>
         <div class="row">
           <button class="btn xs ghost" onclick="speak('${v.h}')">🔊</button>
           <button class="btn xs ghost" onclick="toggleStar2('${v.id}')">${s.star ? "⭐" : "☆"}</button>
-          <span class="tag" style="color:${s.status === "hafal" ? "var(--green)" : s.status === "belajar" ? "var(--accent2)" : "var(--muted)"}">${s.status}</span>
+          <span class="tag" style="color:${s.status === "hafal" ? "var(--green)" : s.status === "belajar" ? "var(--accent)" : "var(--muted)"}">${s.status}</span>
         </div>
       </div>`;
     }).join("") || `<div class="empty">Tidak ada kata.</div>`}
@@ -504,74 +551,120 @@ function renderGym() {
   if (document.querySelector("#sub-riwayat").classList.contains("active")) renderGymRiwayat();
 }
 
+function progKeyFor(dk, day) { return (DB.workouts[dk] && DB.workouts[dk].programKey) || SCHEDULE[day]; }
+function estimasiBurn(key, durasi) {
+  const prog = PROGRAM_LIB[key] || {};
+  const rate = prog.cardio ? (KALORI_PER_MENIT[prog.cardio.jenis] || 8) : KALORI_PER_MENIT["Angkat beban / Gym"];
+  return Math.round((durasi || 0) * rate);
+}
 function renderGymToday() {
-  const tk = todayKey(), hari = new Date().getDay(), prog = PROGRAM[hari];
+  const tk = todayKey(), hari = new Date().getDay();
+  const defKey = SCHEDULE[hari], key = progKeyFor(tk, hari);
+  const prog = PROGRAM_LIB[key] || PROGRAM_LIB[defKey];
   const w = DB.workouts[tk] || { done: [], durasi: 0, catatan: "" };
   const area = document.getElementById("gymTodayArea");
   area.innerHTML = `
-    <div class="card" style="background:linear-gradient(160deg,#1e293b,#0f172a)">
-      <div class="row spread">
-        <div><div class="muted small">${NAMA_HARI[hari]}</div><h3 style="margin:2px 0;font-size:20px">${prog.emoji} ${prog.nama}</h3><div class="small muted">${prog.fokus}</div></div>
-      </div>
-      ${prog.cardio ? `<div class="small mt" style="color:var(--accent2)">🏃 ${prog.cardio.jenis} · ${prog.cardio.durasi} mnt</div>` : ""}
+    <div class="card" style="background:linear-gradient(160deg,#e3f6f3,#e6f0fc)">
+      <div class="muted small">${NAMA_HARI[hari]}</div>
+      <h3 style="margin:2px 0;font-size:20px">${prog.emoji} ${prog.nama}</h3>
+      <div class="small muted">${prog.fokus}</div>
+      ${prog.cardio ? `<div class="small mt" style="color:var(--accent)">🏃 ${prog.cardio.jenis} · ${prog.cardio.durasi} mnt</div>` : ""}
     </div>
 
     <div class="card">
+      <h3>🔄 Pilih Program</h3>
+      <select id="gProg" onchange="setProgramHariIni(this.value)">
+        ${Object.keys(PROGRAM_LIB).map(k => `<option value="${k}" ${k === key ? "selected" : ""}>${PROGRAM_LIB[k].emoji} ${PROGRAM_LIB[k].nama}${k === defKey ? " — disarankan" : ""}</option>`).join("")}
+      </select>
+      <div class="small muted mt">Saran hari ini: <b>${PROGRAM_LIB[defKey].emoji} ${PROGRAM_LIB[defKey].nama}</b> — bebas ganti sesuai mood. ${key !== defKey ? `<button class="btn xs ghost" onclick="setProgramHariIni('${defKey}')">pakai saran</button>` : ""}</div>
+    </div>
+
+    ${prog.exercises.length ? `<div class="card">
       <h3>✅ Checklist Latihan</h3>
       ${prog.exercises.map(ex => {
         const done = w.done.includes(ex.n);
         return `<label class="checkrow ${done ? "done" : ""}">
           <input type="checkbox" ${done ? "checked" : ""} onchange="toggleEx('${esc(ex.n)}')">
-          <span class="grow"><span class="ex-name">${ex.n}</span><div class="ex-d">${ex.d}</div></span>
+          <span class="grow"><span class="ex-name">${esc(ex.n)}</span><div class="ex-d">${esc(ex.d)}</div></span>
         </label>`;
       }).join("")}
-    </div>
+    </div>` : `<div class="card"><h3>✍️ Latihan Bebas</h3><div class="small muted">Program custom — langsung catat durasi & kalori di bawah, atau tulis detail latihanmu di catatan.</div></div>`}
 
     <div class="card">
-      <h3>⏱️ Durasi & Catatan</h3>
-      <label class="field"><span>Total durasi olahraga (menit) — target min. 30</span>
-        <input type="number" id="gDurasi" value="${w.durasi || ""}" placeholder="0" oninput="hitungBurn()"></label>
-      <div id="burnInfo" class="small muted mb"></div>
+      <h3>⏱️ Durasi, Kalori & Catatan</h3>
+      <div class="grid2">
+        <label class="field"><span>Durasi (menit) — target ≥30</span>
+          <input type="number" id="gDurasi" value="${w.durasi || ""}" placeholder="0" oninput="hitungBurn()"></label>
+        <label class="field"><span>Kalori terbakar (kkal)</span>
+          <input type="number" id="gKalori" value="${w.kaloriTerbakar || ""}" placeholder="otomatis" oninput="hitungBurn()"></label>
+      </div>
+      <button class="btn xs sec" onclick="isiBurnOtomatis()">↺ Hitung kalori otomatis dari durasi</button>
+      <div id="burnInfo" class="small muted mt mb"></div>
       <label class="field"><span>Catatan (opsional)</span>
-        <textarea id="gCatatan" placeholder="Beban, perasaan, dll">${esc(w.catatan || "")}</textarea></label>
+        <textarea id="gCatatan" placeholder="Beban, set, perasaan, dll">${esc(w.catatan || "")}</textarea></label>
       <button class="btn full green" onclick="simpanWorkout()">Simpan Latihan</button>
+      <div class="small muted center mt">💡 Kalori terbakar otomatis masuk ke perhitungan berat badan mingguan.</div>
     </div>
   `;
   hitungBurn();
 }
-function toggleEx(name) {
-  const tk = todayKey();
+function setProgramHariIni(key) {
+  const tk = todayKey(), hari = new Date().getDay();
   const w = DB.workouts[tk] || { done: [], durasi: 0, catatan: "" };
+  w.programKey = key;
+  DB.workouts[tk] = w; save();
+  renderGymToday();
+  if (currentView === "home") renderHome();
+}
+function toggleEx(name) {
+  const tk = todayKey(), hari = new Date().getDay();
+  const w = DB.workouts[tk] || { done: [], durasi: 0, catatan: "", programKey: SCHEDULE[hari] };
   const i = w.done.indexOf(name);
   if (i >= 0) w.done.splice(i, 1); else w.done.push(name);
   DB.workouts[tk] = w; save();
 }
 function hitungBurn() {
-  const hari = new Date().getDay(), prog = PROGRAM[hari];
+  const tk = todayKey(), hari = new Date().getDay(), key = progKeyFor(tk, hari);
   const durasi = +(document.getElementById("gDurasi")?.value || 0);
-  const rate = prog.cardio ? (KALORI_PER_MENIT[prog.cardio.jenis] || 8) : (KALORI_PER_MENIT["Angkat beban / Gym"]);
-  const burn = Math.round(durasi * rate);
+  const est = estimasiBurn(key, durasi);
+  const kalField = document.getElementById("gKalori");
+  const manual = kalField ? +(kalField.value || 0) : 0;
+  if (kalField && !kalField.value) kalField.placeholder = est ? est + " (otomatis)" : "otomatis";
+  const shown = manual || est;
   const info = document.getElementById("burnInfo");
-  if (info) info.innerHTML = durasi ? `≈ <b style="color:var(--accent2)">${burn} kkal</b> terbakar · ${durasi >= 30 ? "✓ target tercapai" : "kurang " + (30 - durasi) + " mnt lagi"}` : "";
-  return burn;
+  if (info) info.innerHTML = (durasi || manual)
+    ? `🔥 <b style="color:var(--accent)">${shown} kkal</b> ${manual ? "(manual)" : "(estimasi)"}${durasi ? " · " + (durasi >= 30 ? "✓ target 30 mnt tercapai" : "kurang " + (30 - durasi) + " mnt lagi") : ""}`
+    : "";
+  return shown;
+}
+function isiBurnOtomatis() {
+  const tk = todayKey(), hari = new Date().getDay(), key = progKeyFor(tk, hari);
+  const durasi = +(document.getElementById("gDurasi")?.value || 0);
+  if (!durasi) { toast("Isi durasi dulu"); return; }
+  document.getElementById("gKalori").value = estimasiBurn(key, durasi);
+  hitungBurn();
 }
 function simpanWorkout() {
-  const tk = todayKey();
+  const tk = todayKey(), hari = new Date().getDay();
   const w = DB.workouts[tk] || { done: [] };
+  if (!w.programKey) w.programKey = SCHEDULE[hari];
   w.durasi = +(document.getElementById("gDurasi").value || 0);
+  const manual = +(document.getElementById("gKalori").value || 0);
+  w.kaloriTerbakar = manual || estimasiBurn(w.programKey, w.durasi);
   w.catatan = document.getElementById("gCatatan").value;
-  w.kaloriTerbakar = hitungBurn();
   DB.workouts[tk] = w; save();
-  toast(w.durasi >= 30 ? "💪 Mantap, target tercapai!" : "Tersimpan");
+  toast(w.durasi >= 30 ? "💪 Mantap, target tercapai!" : "Tersimpan ✓");
+  renderGymToday();
+  updateReminder();
 }
 
 function renderProgram() {
   const area = document.getElementById("programArea");
   const order = [1, 2, 3, 4, 5, 6, 0];
   const today = new Date().getDay();
-  area.innerHTML = order.map(d => {
+  area.innerHTML = `<div class="card tight"><div class="small muted">📅 Ini jadwal <b>saran</b> mingguan. Mau variasi? Ganti program harian kapan saja di tab <b>Hari Ini</b> → "Pilih Program".</div></div>` + order.map(d => {
     const p = PROGRAM[d];
-    return `<div class="card ${d === today ? "" : ""}" ${d === today ? 'style="border-color:var(--accent2)"' : ""}>
+    return `<div class="card ${d === today ? "" : ""}" ${d === today ? 'style="border-color:var(--accent)"' : ""}>
       <div class="row spread">
         <h3 style="margin:0">${p.emoji} ${NAMA_HARI[d]} — ${p.nama}</h3>
         ${d === today ? '<span class="pill-done">Hari ini</span>' : ""}
@@ -596,9 +689,10 @@ function renderGymRiwayat() {
     </div>
     ${keys.length ? keys.map(k => {
       const w = DB.workouts[k], d = parseKey(k);
+      const pnama = (PROGRAM_LIB[w.programKey || SCHEDULE[d.getDay()]] || {}).nama || "Latihan";
       return `<div class="litem">
-        <div class="grow"><b>${NAMA_HARI[d.getDay()]}, ${fmtTgl(k)}</b><div><small>${PROGRAM[d.getDay()].nama} · ${w.done.length} gerakan${w.catatan ? " · " + esc(w.catatan) : ""}</small></div></div>
-        <div class="center"><b style="color:${w.durasi >= 30 ? "var(--green)" : "var(--accent2)"}">${w.durasi || 0}'</b><div><small>${w.kaloriTerbakar || 0} kkal</small></div></div>
+        <div class="grow"><b>${NAMA_HARI[d.getDay()]}, ${fmtTgl(k)}</b><div><small>${pnama} · ${w.done.length} gerakan${w.catatan ? " · " + esc(w.catatan) : ""}</small></div></div>
+        <div class="center"><b style="color:${w.durasi >= 30 ? "var(--green)" : "var(--accent)"}">${w.durasi || 0}'</b><div><small>${w.kaloriTerbakar || 0} kkal</small></div></div>
       </div>`;
     }).join("") : `<div class="empty">Belum ada riwayat latihan.</div>`}
   `;
@@ -627,10 +721,10 @@ function renderKalori() {
         <input type="date" value="${kaloriTgl}" max="${todayKey()}" onchange="kaloriTgl=this.value;renderKalori()"></label>
       <div class="stat-grid">
         <div><div class="muted small">Masuk</div><div class="stat-big" style="font-size:22px">${total}</div></div>
-        <div><div class="muted small">Olahraga</div><div class="stat-big" style="font-size:22px;color:var(--accent2)">-${burn}</div></div>
+        <div><div class="muted small">Olahraga</div><div class="stat-big" style="font-size:22px;color:var(--accent)">-${burn}</div></div>
         <div><div class="muted small">Target</div><div class="stat-big" style="font-size:22px">${tgt}</div></div>
       </div>
-      <div class="pbar mt"><div style="width:${Math.min(100, total / tgt * 100)}%;background:${total > tgt ? "var(--accent)" : "linear-gradient(90deg,var(--green),var(--accent2))"}"></div></div>
+      <div class="pbar mt"><div style="width:${Math.min(100, total / tgt * 100)}%;background:${total > tgt ? "var(--rose)" : "linear-gradient(90deg,var(--green),var(--accent))"}"></div></div>
       <div class="small ${sisa < 0 ? "up" : "down"} mt center">${sisa >= 0 ? "Sisa " + sisa + " kkal — bagus, tetap defisit 👍" : "Lebih " + (-sisa) + " kkal dari target ⚠️"}</div>
     </div>
 
@@ -647,7 +741,7 @@ function renderKalori() {
 
     ${meals.length ? `<div class="card"><h3>Daftar (${fmtTgl(kaloriTgl)})</h3>${meals.map(m => `
       <div class="litem"><div class="grow"><b>${esc(m.nama)}</b></div><div class="row"><b>${m.kalori} kkal</b><button class="btn xs ghost" onclick="hapusMakan('${m.id}')">🗑</button></div></div>
-    `).join("")}<div class="row spread mt"><b>Total</b><b style="color:var(--accent2)">${total} kkal</b></div></div>` : `<div class="empty">Belum ada makanan dicatat untuk tanggal ini.</div>`}
+    `).join("")}<div class="row spread mt"><b>Total</b><b style="color:var(--accent)">${total} kkal</b></div></div>` : `<div class="empty">Belum ada makanan dicatat untuk tanggal ini.</div>`}
   `;
   // auto isi kalori dari datalist
   const nama = document.getElementById("fNama");
@@ -730,7 +824,7 @@ function renderBerat() {
           return `<tr>
             <td>${fmtTgl(dateKey(m.dates[0] ? parseKey(m.dates[0]) : new Date()))}</td>
             <td class="num">${m.beratAwal}</td>
-            <td class="num" style="color:var(--accent2)">${m.estimasi}</td>
+            <td class="num" style="color:var(--accent)">${m.estimasi}</td>
             <td class="num">${m.aktual ?? "–"}</td>
             <td class="num ${selisih == null ? "" : selisih > 0 ? "up" : "down"}">${selisih == null ? "–" : (selisih > 0 ? "+" : "") + selisih}</td>
           </tr>`;
@@ -879,7 +973,7 @@ function renderSetting() {
     </div>
 
     <div class="card">
-      <button class="btn full ghost" style="color:var(--accent)" onclick="if(confirm('Hapus SEMUA data? Tidak bisa dikembalikan.')){localStorage.removeItem('gm_data');location.reload()}">🗑 Reset Semua Data</button>
+      <button class="btn full ghost" style="color:var(--rose)" onclick="if(confirm('Hapus SEMUA data? Tidak bisa dikembalikan.')){localStorage.removeItem('gm_data');location.reload()}">🗑 Reset Semua Data</button>
     </div>
     <div class="center small muted mb">GymMandarin · dibuat untuk dirimu sendiri 加油!</div>
   `;

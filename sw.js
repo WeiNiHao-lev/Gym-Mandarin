@@ -1,5 +1,5 @@
 /* Service Worker — caching offline sederhana */
-const CACHE = "gymmandarin-v2";
+const CACHE = "gymmandarin-v3";
 const ASSETS = [
   "./",
   "./index.html",

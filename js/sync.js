@@ -103,7 +103,7 @@ async function syncPull() {
   } catch (e) { console.warn("pull err", e); }
 }
 
-function syncPush(localData) {
+function syncPushDebounced(localData) {
   if (SYNC.status !== "signedin") return;
   clearTimeout(SYNC._t);
   SYNC._t = setTimeout(() => syncPushNow(localData), 1500); // debounce
@@ -128,8 +128,9 @@ function syncRefreshUI() {
 
 function _toast(m) { if (typeof toast === "function") toast(m); else console.log(m); }
 
-// expose untuk app.js
-window.syncPush = (d) => syncPush(d);
+// expose untuk app.js (referensi fungsi langsung — JANGAN arrow yg memanggil nama sama,
+// karena window.syncPush akan menimpa binding global dan menyebabkan rekursi tak henti)
+window.syncPush = syncPushDebounced;
 
 // inisialisasi setelah app.js siap
 syncInit();

@@ -419,11 +419,11 @@ const HSK_VOCAB_2 = [
 const VOCAB = HSK_VOCAB.concat(HSK_VOCAB_2).filter(v => /[一-鿿]/.test(v.h))
   .map((v, i) => ({ id: "v" + i, ...v }));
 
-/* ---------- PROGRAM LATIHAN MINGGUAN ----------
-   Disusun untuk fat loss + mengecilkan perut (banyak compound + core + kardio).
-   key = indeks hari getDay() (0=Minggu ... 6=Sabtu) */
-const PROGRAM = {
-  1: { // Senin
+/* ---------- LIBRARY PROGRAM LATIHAN ----------
+   Kumpulan template program. Bisa dipilih bebas per hari di aplikasi.
+   Disusun untuk fat loss + mengecilkan perut (banyak compound + core + kardio). */
+const PROGRAM_LIB = {
+  upper: {
     nama: "Upper Body", emoji: "💪", fokus: "Dada, punggung, lengan",
     exercises: [
       { n: "Pull-up / Lat Pulldown", d: "3 × 8-12" },
@@ -433,10 +433,9 @@ const PROGRAM = {
       { n: "Bicep Curl", d: "3 × 12" },
       { n: "Tricep Dip", d: "3 × 12" },
       { n: "Plank (core)", d: "3 × 45 dtk" },
-    ],
-    cardio: null, target: 45,
+    ], cardio: null, target: 45,
   },
-  2: { // Selasa
+  lari_bw: {
     nama: "Lari + Bodyweight", emoji: "🏃", fokus: "Kardio & ketahanan",
     exercises: [
       { n: "Push-up", d: "4 × 15" },
@@ -445,10 +444,9 @@ const PROGRAM = {
       { n: "Mountain Climbers", d: "3 × 30 dtk" },
       { n: "Burpees", d: "3 × 10" },
       { n: "Plank (core)", d: "3 × 45 dtk" },
-    ],
-    cardio: { jenis: "Lari", durasi: 30 }, target: 45,
+    ], cardio: { jenis: "Lari", durasi: 30 }, target: 45,
   },
-  3: { // Rabu
+  lower: {
     nama: "Lower Body", emoji: "🦵", fokus: "Kaki & glutes",
     exercises: [
       { n: "Squat (barbell/dumbbell)", d: "4 × 8-12" },
@@ -457,10 +455,9 @@ const PROGRAM = {
       { n: "Walking Lunges", d: "3 × 12/kaki" },
       { n: "Calf Raise", d: "4 × 15" },
       { n: "Hanging Leg Raise (core)", d: "3 × 12" },
-    ],
-    cardio: null, target: 45,
+    ], cardio: null, target: 45,
   },
-  4: { // Kamis
+  trisep_bahu: {
     nama: "Trisep & Bahu", emoji: "🏋️", fokus: "Bahu & trisep",
     exercises: [
       { n: "Overhead Press", d: "4 × 8-12" },
@@ -470,18 +467,16 @@ const PROGRAM = {
       { n: "Skull Crusher", d: "3 × 12" },
       { n: "Face Pull", d: "3 × 15" },
       { n: "Bicycle Crunch (core)", d: "3 × 20" },
-    ],
-    cardio: null, target: 45,
+    ], cardio: null, target: 45,
   },
-  5: { // Jumat
+  rest_lari: {
     nama: "Istirahat / Lari Ringan", emoji: "😌", fokus: "Recovery aktif",
     exercises: [
       { n: "Stretching / Mobility", d: "10-15 mnt" },
       { n: "Plank (opsional)", d: "3 × 45 dtk" },
-    ],
-    cardio: { jenis: "Lari ringan (opsional)", durasi: 30 }, target: 30,
+    ], cardio: { jenis: "Lari ringan (opsional)", durasi: 30 }, target: 30,
   },
-  6: { // Sabtu
+  dada_bicep: {
     nama: "Dada & Bicep + Badminton", emoji: "🏸", fokus: "Dada, bicep & badminton (14.00-16.00)",
     exercises: [
       { n: "Bench Press", d: "4 × 8-12" },
@@ -491,10 +486,9 @@ const PROGRAM = {
       { n: "Barbell/Dumbbell Curl", d: "3 × 12" },
       { n: "Hammer Curl", d: "3 × 12" },
       { n: "Badminton 🏸", d: "14.00 - 16.00" },
-    ],
-    cardio: { jenis: "Badminton", durasi: 120 }, target: 60,
+    ], cardio: { jenis: "Badminton", durasi: 120 }, target: 60,
   },
-  0: { // Minggu
+  lari_kardio: {
     nama: "Lari + Kardio", emoji: "🔥", fokus: "Kardio & pembakaran lemak + timbang BB",
     exercises: [
       { n: "Lari", d: "30-40 mnt" },
@@ -503,10 +497,97 @@ const PROGRAM = {
       { n: "Russian Twist (core)", d: "3 × 20" },
       { n: "Leg Raise (core)", d: "3 × 15" },
       { n: "Plank (core)", d: "3 × 60 dtk" },
-    ],
-    cardio: { jenis: "Lari + Kardio", durasi: 40 }, target: 50,
+    ], cardio: { jenis: "Lari + Kardio", durasi: 40 }, target: 50,
+  },
+  // ---- Template tambahan (variasi) ----
+  full_body: {
+    nama: "Full Body", emoji: "🧱", fokus: "Seluruh tubuh (efisien)",
+    exercises: [
+      { n: "Squat", d: "3 × 10" },
+      { n: "Bench Press / Push-up", d: "3 × 10" },
+      { n: "Bent-over Row", d: "3 × 10" },
+      { n: "Overhead Press", d: "3 × 10" },
+      { n: "Romanian Deadlift", d: "3 × 10" },
+      { n: "Plank (core)", d: "3 × 45 dtk" },
+    ], cardio: null, target: 45,
+  },
+  push: {
+    nama: "Push (Dorong)", emoji: "🤜", fokus: "Dada, bahu, trisep",
+    exercises: [
+      { n: "Bench Press", d: "4 × 8-12" },
+      { n: "Overhead Press", d: "3 × 10" },
+      { n: "Incline Dumbbell Press", d: "3 × 10" },
+      { n: "Lateral Raise", d: "3 × 15" },
+      { n: "Tricep Pushdown", d: "3 × 12" },
+      { n: "Plank (core)", d: "3 × 45 dtk" },
+    ], cardio: null, target: 45,
+  },
+  pull: {
+    nama: "Pull (Tarik)", emoji: "🤛", fokus: "Punggung & bicep",
+    exercises: [
+      { n: "Pull-up / Lat Pulldown", d: "4 × 8-12" },
+      { n: "Seated Row", d: "3 × 12" },
+      { n: "Face Pull", d: "3 × 15" },
+      { n: "Bicep Curl", d: "3 × 12" },
+      { n: "Hammer Curl", d: "3 × 12" },
+      { n: "Hanging Leg Raise (core)", d: "3 × 12" },
+    ], cardio: null, target: 45,
+  },
+  core_perut: {
+    nama: "Core / Perut", emoji: "🎯", fokus: "Khusus kecilkan perut",
+    exercises: [
+      { n: "Plank", d: "3 × 60 dtk" },
+      { n: "Bicycle Crunch", d: "3 × 20" },
+      { n: "Russian Twist", d: "3 × 20" },
+      { n: "Leg Raise", d: "3 × 15" },
+      { n: "Mountain Climbers", d: "3 × 30 dtk" },
+      { n: "Dead Bug", d: "3 × 12" },
+    ], cardio: { jenis: "Lari ringan (opsional)", durasi: 20 }, target: 35,
+  },
+  kardio_hiit: {
+    nama: "Kardio / HIIT", emoji: "⚡", fokus: "Bakar kalori maksimal",
+    exercises: [
+      { n: "HIIT (sprint interval)", d: "15 mnt" },
+      { n: "Burpees", d: "4 × 12" },
+      { n: "Jumping Jack", d: "4 × 40" },
+      { n: "High Knees", d: "3 × 40 dtk" },
+      { n: "Plank (core)", d: "3 × 45 dtk" },
+    ], cardio: { jenis: "HIIT", durasi: 25 }, target: 35,
+  },
+  lari_only: {
+    nama: "Lari Saja", emoji: "🏃‍♂️", fokus: "Kardio jarak jauh",
+    exercises: [
+      { n: "Pemanasan jalan cepat", d: "5 mnt" },
+      { n: "Lari", d: "30-45 mnt" },
+      { n: "Pendinginan + stretching", d: "5 mnt" },
+    ], cardio: { jenis: "Lari", durasi: 40 }, target: 40,
+  },
+  badminton: {
+    nama: "Badminton", emoji: "🏸", fokus: "Kardio + kelincahan",
+    exercises: [
+      { n: "Pemanasan", d: "10 mnt" },
+      { n: "Badminton", d: "90-120 mnt" },
+    ], cardio: { jenis: "Badminton", durasi: 120 }, target: 60,
+  },
+  rest: {
+    nama: "Istirahat Total", emoji: "🛌", fokus: "Pemulihan penuh",
+    exercises: [
+      { n: "Stretching ringan (opsional)", d: "10 mnt" },
+      { n: "Jalan santai (opsional)", d: "15-20 mnt" },
+    ], cardio: null, target: 0,
+  },
+  custom: {
+    nama: "Custom (bebas)", emoji: "✍️", fokus: "Catat latihanmu sendiri",
+    exercises: [], cardio: null, target: 30,
   },
 };
+
+// Jadwal default mingguan (key = getDay(): 0=Minggu .. 6=Sabtu)
+const SCHEDULE = { 1: "upper", 2: "lari_bw", 3: "lower", 4: "trisep_bahu", 5: "rest_lari", 6: "dada_bicep", 0: "lari_kardio" };
+
+// PROGRAM[day] = template default hari itu (kompatibel dgn kode lama)
+const PROGRAM = {};
+for (const d in SCHEDULE) PROGRAM[d] = PROGRAM_LIB[SCHEDULE[d]];
 
 const NAMA_HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
