@@ -8,3 +8,5 @@ gymmandarin-backup-*.json
 
 # Editor
 *.log
+
+.vercel
