@@ -1,11 +1,13 @@
 /* Service Worker — caching offline sederhana */
-const CACHE = "gymmandarin-v1";
+const CACHE = "gymmandarin-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./css/styles.css",
   "./js/data.js",
   "./js/app.js",
+  "./js/config.js",
+  "./js/sync.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

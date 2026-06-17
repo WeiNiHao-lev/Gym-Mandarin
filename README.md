@@ -32,7 +32,30 @@ Untuk bisa benar-benar di-*install* di HP, aplikasi perlu alamat **HTTPS**. Cara
 >
 > **Update aplikasi nanti:** cukup jalankan `deploy-github.bat` lagi.
 
-**Pindah data antar perangkat:** menu **⚙️ Atur → Backup Data → Export**, lalu **Import** file `.json` itu di perangkat lain (data tersimpan lokal per-perangkat).
+**Pindah data antar perangkat (cara manual):** menu **⚙️ Atur → Backup Data → Export**, lalu **Import** file `.json` itu di perangkat lain. *(Untuk sinkron otomatis, lihat Cloud Sync di bawah.)*
+
+---
+
+## 🌐 Hosting alternatif: Vercel
+
+Selain GitHub Pages, bisa juga host di **Vercel** (sering lebih mulus, tanpa ribet bikin repo):
+
+1. **Double-click [`deploy-vercel.bat`](deploy-vercel.bat).**
+2. Login Vercel saat diminta (pilih cara login → Authorize di browser).
+3. Tunggu sampai muncul baris `Production: https://....vercel.app` → itu link aplikasimu.
+4. Buka link itu di HP & laptop → **Install**.
+
+Update berikutnya: jalankan `deploy-vercel.bat` lagi.
+
+---
+
+## ☁️ Cloud Sync (sinkron otomatis HP ↔ laptop)
+
+Secara default data tersimpan **lokal per-perangkat**. Supaya data (latihan, berat, kalori, progres hafalan) **otomatis nyambung** di HP & laptop, aktifkan Cloud Sync via **Supabase**:
+
+➡️ Ikuti langkahnya di **[SUPABASE-SETUP.md](SUPABASE-SETUP.md)** (sekali setup), lalu login di **⚙️ Atur → Cloud Sync** dengan email & password yang sama di tiap perangkat.
+
+> Tetap offline-friendly: tanpa internet app tetap jalan pakai data lokal; saat online lagi otomatis sinkron.
 
 ---
 

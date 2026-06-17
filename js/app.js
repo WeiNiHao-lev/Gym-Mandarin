@@ -33,7 +33,21 @@ function load() {
     return Object.assign(DEFAULT_DB(), JSON.parse(raw));
   } catch (e) { return DEFAULT_DB(); }
 }
-function save() { localStorage.setItem("gm_data", JSON.stringify(DB)); }
+function save() {
+  localStorage.setItem("gm_data", JSON.stringify(DB));
+  localStorage.setItem("gm_ts", String(Date.now()));
+  if (window.syncPush) window.syncPush(DB);
+}
+
+// Dipakai oleh modul sync (js/sync.js)
+let currentView = "home";
+window.getLocalData = () => DB;
+window.applySyncedData = (data) => {
+  DB = Object.assign(DEFAULT_DB(), data);
+  localStorage.setItem("gm_data", JSON.stringify(DB));
+  renderView(currentView);
+  if (typeof toast === "function") toast("☁️ Data tersinkron dari cloud");
+};
 
 /* ---------------- TANGGAL ---------------- */
 function dateKey(d) {
@@ -109,6 +123,7 @@ function ringkasanMinggu(monday) {
 
 /* ---------------- NAVIGASI ---------------- */
 function go(view) {
+  currentView = view;
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById("view-" + view).classList.add("active");
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === view));
@@ -759,6 +774,52 @@ function sparkline() {
 /* ============================================================
    PENGATURAN
    ============================================================ */
+function renderSyncCard() {
+  if (typeof SYNC === "undefined") return "";
+  let inner;
+  if (!SYNC.url || !SYNC.key) {
+    inner = `
+      <div class="small muted mb">Sinkronkan data antara HP & laptop lewat Supabase. Tempel <b>Project URL</b> & <b>anon public key</b> dari Supabase (Settings → API).</div>
+      <label class="field"><span>Project URL</span><input id="syncUrl" placeholder="https://xxxx.supabase.co"></label>
+      <label class="field"><span>anon public key</span><input id="syncKey" placeholder="eyJhbGci..."></label>
+      <button class="btn full" onclick="doSyncConfigure()">Hubungkan</button>`;
+  } else if (SYNC.status === "signedin") {
+    inner = `
+      <div class="small down mb">✅ Tersinkron sebagai <b>${esc((SYNC.user && SYNC.user.email) || "")}</b></div>
+      <div class="grid2">
+        <button class="btn green" onclick="doSyncManual()">☁️ Sinkron sekarang</button>
+        <button class="btn sec" onclick="syncSignOut()">Logout</button>
+      </div>
+      <button class="btn ghost full mt" onclick="if(confirm('Lupakan project Supabase di perangkat ini?'))syncForget()">Ganti project</button>`;
+  } else if (SYNC.status === "error") {
+    inner = `<div class="small up mb">⚠️ ${esc(SYNC.msg || "Gagal terhubung ke Supabase")}</div>
+      <button class="btn ghost full" onclick="syncForget()">Atur ulang</button>`;
+  } else {
+    inner = `
+      <div class="small muted mb">Masuk untuk mulai sinkron. Pakai email & password yang <b>sama</b> di HP & laptop.</div>
+      <label class="field"><span>Email</span><input id="syncEmail" type="email" placeholder="email kamu"></label>
+      <label class="field"><span>Password</span><input id="syncPw" type="password" placeholder="minimal 6 karakter"></label>
+      <div class="grid2">
+        <button class="btn" onclick="doSyncSignIn('in')">Masuk</button>
+        <button class="btn sec" onclick="doSyncSignIn('up')">Daftar baru</button>
+      </div>
+      <button class="btn ghost full mt" onclick="if(confirm('Lupakan project Supabase di perangkat ini?'))syncForget()">Ganti project</button>`;
+  }
+  return `<div class="card"><h3>☁️ Cloud Sync (Supabase)</h3>${inner}</div>`;
+}
+function doSyncConfigure() {
+  const u = document.getElementById("syncUrl").value, k = document.getElementById("syncKey").value;
+  if (!u || !k) { toast("Isi URL & anon key"); return; }
+  toast("Menghubungkan...");
+  syncConfigure(u, k);
+}
+function doSyncSignIn(mode) {
+  const e = document.getElementById("syncEmail").value, p = document.getElementById("syncPw").value;
+  if (!e || !p) { toast("Isi email & password"); return; }
+  if (mode === "up") syncSignUp(e, p); else syncSignIn(e, p);
+}
+function doSyncManual() { if (typeof syncPushNow === "function") { syncPushNow(DB); toast("Menyinkronkan..."); } }
+
 function renderSetting() {
   const p = DB.profile;
   const area = document.getElementById("settingArea");
@@ -789,6 +850,8 @@ function renderSetting() {
       <label class="field"><span>Target kalori/hari (0 = otomatis defisit 500)</span><input type="number" id="pTKal" value="${p.targetKalori}"></label>
       <button class="btn full green" onclick="simpanProfil()">Simpan Profil</button>
     </div>
+
+    ${typeof renderSyncCard === "function" ? renderSyncCard() : ""}
 
     <div class="card">
       <h3>🔔 Pengingat</h3>
