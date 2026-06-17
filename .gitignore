@@ -1,0 +1,10 @@
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Backup data hasil export aplikasi
+gymmandarin-backup-*.json
+
+# Editor
+*.log

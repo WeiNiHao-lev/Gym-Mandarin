@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>中 GymMandarin</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- Banner pengingat -->
+  <div id="reminderBanner" class="reminder-banner hidden"></div>
+
+  <header class="app-header">
+    <h1><span class="logo-cn">中</span> GymMandarin</h1>
+    <div id="todayLabel" class="today-label"></div>
+  </header>
+
+  <main id="app">
+
+    <!-- ============ BERANDA ============ -->
+    <section id="view-home" class="view active">
+      <h2 class="view-title">Beranda</h2>
+      <div id="homeContent"></div>
+    </section>
+
+    <!-- ============ MANDARIN ============ -->
+    <section id="view-mandarin" class="view">
+      <h2 class="view-title">Belajar Mandarin</h2>
+
+      <div class="subtabs">
+        <button class="subtab active" data-sub="flashcard">Flashcard</button>
+        <button class="subtab" data-sub="harian">Target Harian</button>
+        <button class="subtab" data-sub="materi">Materi</button>
+        <button class="subtab" data-sub="daftar">Daftar Kata</button>
+      </div>
+
+      <div id="sub-flashcard" class="subview active">
+        <div class="level-filter" id="levelFilter"></div>
+        <div id="flashcardArea"></div>
+      </div>
+
+      <div id="sub-harian" class="subview">
+        <div id="dailyVocabArea"></div>
+      </div>
+
+      <div id="sub-materi" class="subview">
+        <div id="materiArea"></div>
+      </div>
+
+      <div id="sub-daftar" class="subview">
+        <div id="daftarArea"></div>
+      </div>
+    </section>
+
+    <!-- ============ GYM ============ -->
+    <section id="view-gym" class="view">
+      <h2 class="view-title">Gym & Lari</h2>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="hariini">Hari Ini</button>
+        <button class="subtab" data-sub="program">Program Minggu</button>
+        <button class="subtab" data-sub="riwayat">Riwayat</button>
+      </div>
+      <div id="sub-hariini" class="subview active"><div id="gymTodayArea"></div></div>
+      <div id="sub-program" class="subview"><div id="programArea"></div></div>
+      <div id="sub-riwayat" class="subview"><div id="gymRiwayatArea"></div></div>
+    </section>
+
+    <!-- ============ NUTRISI & BERAT ============ -->
+    <section id="view-nutrisi" class="view">
+      <h2 class="view-title">Nutrisi & Berat Badan</h2>
+      <div class="subtabs">
+        <button class="subtab active" data-sub="kalori">Kalori Harian</button>
+        <button class="subtab" data-sub="berat">Berat Badan</button>
+      </div>
+      <div id="sub-kalori" class="subview active"><div id="kaloriArea"></div></div>
+      <div id="sub-berat" class="subview"><div id="beratArea"></div></div>
+    </section>
+
+    <!-- ============ PENGATURAN ============ -->
+    <section id="view-setting" class="view">
+      <h2 class="view-title">Pengaturan</h2>
+      <div id="settingArea"></div>
+    </section>
+
+  </main>
+
+  <!-- ============ NAVIGASI BAWAH ============ -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="home"><span class="nav-ico">🏠</span><span>Beranda</span></button>
+    <button class="nav-btn" data-view="mandarin"><span class="nav-ico">中</span><span>Mandarin</span></button>
+    <button class="nav-btn" data-view="gym"><span class="nav-ico">🏋️</span><span>Gym</span></button>
+    <button class="nav-btn" data-view="nutrisi"><span class="nav-ico">🍱</span><span>Nutrisi</span></button>
+    <button class="nav-btn" data-view="setting"><span class="nav-ico">⚙️</span><span>Atur</span></button>
+  </nav>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
