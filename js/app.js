@@ -5,13 +5,34 @@
 
 const KCAL_PER_KG = 7700; // ~7700 kkal defisit = 1 kg lemak
 
+/* Pilihan fokus/tujuan — menyetir kartu "Fokus" di Beranda (personal per akun) */
+const FOKUS_LIST = {
+  kecilkan_perut: {
+    label: "Kecilkan Perut", emoji: "🎯",
+    tip: (p, tgt) => `Tetap defisit kalori (target ${tgt} kkal/hari), perbanyak kardio (lari) & latihan <b>core</b> tiap hari. Pantau lingkar pinggang (target ${p.targetPinggang} cm) di Nutrisi → Berat Badan. Konsistensi > intensitas.`,
+  },
+  turun_bb: {
+    label: "Turunkan Berat Badan", emoji: "📉",
+    tip: (p, tgt) => `Jaga defisit kalori (target ${tgt} kkal/hari) menuju <b>${p.targetBerat} kg</b>. Gabung kardio + angkat beban biar otot tetap terjaga saat berat turun.`,
+  },
+  naik_otot: {
+    label: "Tambah Massa Otot", emoji: "💪",
+    tip: (p, tgt) => `Surplus kalori ringan + protein cukup (~${Math.round(beratSekarang() * 1.8)} g/hari). Fokus <b>progressive overload</b> — naikkan beban/rep bertahap tiap minggu.`,
+  },
+  bugar: {
+    label: "Jaga Kebugaran & Sehat", emoji: "🌿",
+    tip: (p, tgt) => `Konsisten olahraga ≥30 menit/hari & pola makan seimbang (~${tgt} kkal). Variasikan latihan (gym, lari, badminton) biar nggak bosan.`,
+  },
+};
+
 /* ---------------- STORAGE ---------------- */
 const DEFAULT_DB = () => ({
   profile: {
     nama: "", gender: "pria", umur: 25, tinggi: 170,
     beratAwal: 76, aktivitas: 1.375, targetKalori: 0,
-    targetBerat: 68, targetPinggang: 85,
+    targetBerat: 68, targetPinggang: 85, fokus: "kecilkan_perut",
   },
+  onboarded: false,    // sudah isi profil awal?
   vocabProgress: {},   // id -> {status:'baru'|'belajar'|'hafal', star, lastSeen}
   customVocab: [],     // {id,h,p,a,l,c}
   daily: {},           // dateKey -> {vocabIds:[], kalimat:{id:str}, done}
@@ -187,9 +208,11 @@ function renderHome() {
   const mandarinDone = !!d.done;
   const km = kaloriMakan(tk), tgt = targetKalori();
   const minggu = ringkasanMinggu(mondayOf(new Date()));
+  const fokus = FOKUS_LIST[DB.profile.fokus] || FOKUS_LIST.kecilkan_perut;
 
   const c = document.getElementById("homeContent");
   c.innerHTML = `
+    ${DB.profile.nama ? `<div class="small muted" style="margin:-2px 0 10px">Halo, <b style="color:var(--text)">${esc(DB.profile.nama)}</b> 👋 — ayo capai targetmu!</div>` : ""}
     <div class="card" style="background:linear-gradient(160deg,#cfe4fb,#e6f4f1)">
       <div class="row spread">
         <div>
@@ -233,8 +256,8 @@ function renderHome() {
     </div>
 
     <div class="card">
-      <h3>🎯 Fokus: Kecilkan Perut</h3>
-      <div class="small">Tetap defisit kalori (target ${tgt} kkal/hari), perbanyak kardio (lari) & latihan core tiap hari. Konsistensi > intensitas. Cek lingkar pinggang di tab Nutrisi → Berat Badan.</div>
+      <h3>${fokus.emoji} Fokus: ${fokus.label}</h3>
+      <div class="small">${fokus.tip(DB.profile, tgt)}</div>
     </div>
   `;
   updateReminder();
@@ -947,10 +970,17 @@ function hasSession() {
   }
   return false;
 }
-let gateMode = "login";
+let gateMode = "login";      // login | register
+let inOnboarding = false;    // sedang isi profil setelah daftar
+let lastRegEmail = "";
 function updateGate() {
-  const signedIn = (typeof SYNC !== "undefined" && SYNC.status === "signedin");
   const g = document.getElementById("authGate");
+  if (inOnboarding) {        // tahan di onboarding walau sudah signed-in
+    document.body.classList.add("locked");
+    if (g) { g.style.display = "flex"; renderAuthGate(); }
+    return;
+  }
+  const signedIn = (typeof SYNC !== "undefined" && SYNC.status === "signedin");
   if (signedIn || hasSession() || localStorage.getItem("gm_skipAuth") === "1") {
     document.body.classList.remove("locked");
     if (g) g.style.display = "none";
@@ -961,11 +991,12 @@ function updateGate() {
 }
 function renderAuthGate() {
   const g = document.getElementById("authGate"); if (!g) return;
+  if (inOnboarding) { renderOnboarding(g); return; }
   const isReg = gateMode === "register";
   g.innerHTML = `<div class="auth-card">
     <div class="auth-logo">中</div>
     <h1>GymMandarin</h1>
-    <div class="sub">${isReg ? "Buat akun untuk simpan & sinkron datamu" : "Masuk untuk lanjut belajar & tracking"}</div>
+    <div class="sub">${isReg ? "Buat akun — lalu isi profil singkat" : "Masuk untuk lanjut belajar & tracking"}</div>
     <div class="auth-box">
       <label>Email</label>
       <input id="gateEmail" type="email" placeholder="kamu@email.com" autocomplete="email">
@@ -973,13 +1004,50 @@ function renderAuthGate() {
       <input id="gatePass" type="password" placeholder="minimal 6 karakter" autocomplete="${isReg ? "new-password" : "current-password"}"
         onkeydown="if(event.key==='Enter'){${isReg ? "gateRegister()" : "gateLogin()"}}">
       <div id="gateMsg" class="auth-msg"></div>
-      <button class="btn full" onclick="${isReg ? "gateRegister()" : "gateLogin()"}">${isReg ? "Daftar" : "Masuk"}</button>
+      <button class="btn full" onclick="${isReg ? "gateRegister()" : "gateLogin()"}">${isReg ? "Lanjut — isi profil" : "Masuk"}</button>
       <div class="auth-toggle">${isReg
         ? `Sudah punya akun? <a onclick="gateSwitch('login')">Masuk</a>`
         : `Belum punya akun? <a onclick="gateSwitch('register')">Daftar</a>`}</div>
     </div>
     <span class="auth-skip" onclick="gateSkip()">Lewati dulu — pakai tanpa akun (data lokal saja)</span>
     <div class="auth-foot">🔒 Datamu tersimpan aman & hanya bisa diakses olehmu.</div>
+  </div>`;
+}
+function renderOnboarding(g) {
+  const p = DB.profile;
+  g.innerHTML = `<div class="auth-card">
+    <div class="auth-logo">中</div>
+    <h1>Lengkapi Profilmu</h1>
+    <div class="sub">Biar target kalori & fokusmu pas. Diisi dulu sebelum mulai 🙌</div>
+    <div class="auth-box" style="text-align:left">
+      <label>Nama panggilan</label>
+      <input id="obNama" placeholder="Nama kamu" value="${esc(p.nama || "")}">
+      <div class="grid2">
+        <div><label>Jenis kelamin</label>
+          <select id="obGender"><option value="pria" ${p.gender === "pria" ? "selected" : ""}>Pria</option><option value="wanita" ${p.gender === "wanita" ? "selected" : ""}>Wanita</option></select></div>
+        <div><label>Umur</label><input id="obUmur" type="number" value="${p.umur || ""}" placeholder="25"></div>
+      </div>
+      <div class="grid2">
+        <div><label>Tinggi (cm) *</label><input id="obTinggi" type="number" value="${p.tinggi || ""}" placeholder="170"></div>
+        <div><label>Berat sekarang (kg) *</label><input id="obBerat" type="number" step="0.1" value="${p.beratAwal || ""}" placeholder="76"></div>
+      </div>
+      <div class="grid2">
+        <div><label>Target berat (kg)</label><input id="obTBerat" type="number" step="0.1" value="${p.targetBerat || ""}" placeholder="68"></div>
+        <div><label>Target pinggang (cm)</label><input id="obTPinggang" type="number" value="${p.targetPinggang || ""}" placeholder="85"></div>
+      </div>
+      <label>Tingkat aktivitas harian</label>
+      <select id="obAkt">
+        <option value="1.2" ${p.aktivitas == 1.2 ? "selected" : ""}>Jarang gerak (kerja duduk)</option>
+        <option value="1.375" ${p.aktivitas == 1.375 ? "selected" : ""}>Ringan (sedikit aktif)</option>
+        <option value="1.55" ${p.aktivitas == 1.55 ? "selected" : ""}>Sedang (aktif)</option>
+        <option value="1.725" ${p.aktivitas == 1.725 ? "selected" : ""}>Berat (sangat aktif)</option>
+      </select>
+      <label>Fokus utama 🎯</label>
+      <select id="obFokus">${Object.keys(FOKUS_LIST).map(k => `<option value="${k}" ${p.fokus === k ? "selected" : ""}>${FOKUS_LIST[k].emoji} ${FOKUS_LIST[k].label}</option>`).join("")}</select>
+      <div id="gateMsg" class="auth-msg mt"></div>
+      <button class="btn full green" onclick="gateFinishOnboarding()">Simpan & Lanjut ke Login →</button>
+    </div>
+    <div class="auth-foot">Semua bisa diubah lagi nanti di ⚙️ Atur.</div>
   </div>`;
 }
 function gateSwitch(m) { gateMode = m; renderAuthGate(); }
@@ -997,16 +1065,46 @@ async function gateRegister() {
   if (!e || !p) { gateMsg("Isi email & password."); return; }
   if (p.length < 6) { gateMsg("Password minimal 6 karakter."); return; }
   gateMsg("Membuat akun…", true);
+  inOnboarding = true; lastRegEmail = e;            // ke onboarding, jangan masuk app dulu
   if (window.syncSignUp) await window.syncSignUp(e, p);
-  if (typeof SYNC !== "undefined" && SYNC.status === "signedin") { localStorage.removeItem("gm_skipAuth"); updateGate(); }
-  else gateMsg((typeof SYNC !== "undefined" && SYNC.msg) || "Gagal daftar. Coba email lain.");
+  if (typeof SYNC !== "undefined" && SYNC.status === "signedin") {
+    renderAuthGate();                                // tampilkan form profil
+  } else {
+    inOnboarding = false; renderAuthGate();
+    gateMsg((typeof SYNC !== "undefined" && SYNC.msg) || "Gagal daftar. Coba email lain.");
+  }
 }
-function gateSkip() { localStorage.setItem("gm_skipAuth", "1"); updateGate(); toast("Mode lokal — data hanya di perangkat ini"); }
-function showGate() { localStorage.removeItem("gm_skipAuth"); gateMode = "login"; updateGate(); }
+async function gateFinishOnboarding() {
+  const v = (id) => document.getElementById(id);
+  const tinggi = +v("obTinggi").value, berat = +v("obBerat").value;
+  if (!tinggi || !berat) { gateMsg("Isi tinggi & berat badan dulu."); return; }
+  DB.profile = Object.assign({}, DB.profile, {
+    nama: (v("obNama").value || "").trim(),
+    gender: v("obGender").value,
+    umur: +v("obUmur").value || 25,
+    tinggi, beratAwal: berat,
+    targetBerat: +v("obTBerat").value || Math.max(40, Math.round(berat - 6)),
+    targetPinggang: +v("obTPinggang").value || 85,
+    aktivitas: +v("obAkt").value || 1.375,
+    fokus: v("obFokus").value,
+  });
+  DB.onboarded = true;
+  save();
+  gateMsg("Menyimpan & menyinkronkan…", true);
+  if (window.syncPushNow) await window.syncPushNow(DB);   // data langsung ke cloud
+  inOnboarding = false;
+  gateMode = "login";
+  if (window.syncSignOut) await window.syncSignOut();      // arahkan ke halaman login
+  renderAuthGate();
+  const em = document.getElementById("gateEmail"); if (em && lastRegEmail) em.value = lastRegEmail;
+  gateMsg("Profil tersimpan & tersinkron! Silakan masuk ✅", true);
+}
+function gateSkip() { localStorage.setItem("gm_skipAuth", "1"); inOnboarding = false; updateGate(); toast("Mode lokal — data hanya di perangkat ini"); }
+function showGate() { localStorage.removeItem("gm_skipAuth"); gateMode = "login"; inOnboarding = false; updateGate(); }
 function gateLogout() {
   localStorage.removeItem("gm_skipAuth");
   if (window.syncSignOut) window.syncSignOut();
-  gateMode = "login"; updateGate();
+  gateMode = "login"; inOnboarding = false; updateGate();
 }
 
 /* ============================================================
@@ -1057,6 +1155,8 @@ function renderSetting() {
         <label class="field"><span>Target pinggang (cm)</span><input type="number" id="pTPinggang" value="${p.targetPinggang}"></label>
       </div>
       <label class="field"><span>Target kalori/hari (0 = otomatis defisit 500)</span><input type="number" id="pTKal" value="${p.targetKalori}"></label>
+      <label class="field"><span>Fokus utama 🎯 (mengatur saran di Beranda)</span>
+        <select id="pFokus">${Object.keys(FOKUS_LIST).map(k => `<option value="${k}" ${(p.fokus || "kecilkan_perut") === k ? "selected" : ""}>${FOKUS_LIST[k].emoji} ${FOKUS_LIST[k].label}</option>`).join("")}</select></label>
       <button class="btn full green" onclick="simpanProfil()">Simpan Profil</button>
     </div>
 
@@ -1098,9 +1198,9 @@ function simpanProfil() {
   DB.profile = {
     nama: g("pNama"), gender: g("pGender"), umur: +g("pUmur"), tinggi: +g("pTinggi"),
     beratAwal: +g("pBerat"), aktivitas: +g("pAkt"), targetKalori: +g("pTKal"),
-    targetBerat: +g("pTBerat"), targetPinggang: +g("pTPinggang"),
+    targetBerat: +g("pTBerat"), targetPinggang: +g("pTPinggang"), fokus: g("pFokus"),
   };
-  save(); toast("Profil tersimpan ✓");
+  save(); toast("Profil tersimpan ✓"); if (currentView === "home") renderHome();
 }
 function aktifkanNotif() {
   if (!("Notification" in window)) { toast("Browser tidak mendukung notifikasi"); return; }
