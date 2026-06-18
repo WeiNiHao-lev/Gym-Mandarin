@@ -589,6 +589,72 @@ const SCHEDULE = { 1: "upper", 2: "lari_bw", 3: "lower", 4: "trisep_bahu", 5: "r
 const PROGRAM = {};
 for (const d in SCHEDULE) PROGRAM[d] = PROGRAM_LIB[SCHEDULE[d]];
 
+/* ---------- DATABASE GERAKAN ----------
+   id, n=nama, grup=kelompok otot, alat, set=saran, tip=cara singkat.
+   Video diambil otomatis dari pencarian YouTube berdasarkan nama. */
+const EX_GRUP = ["Dada", "Punggung", "Bahu", "Lengan", "Kaki", "Core", "Kardio"];
+const EXERCISES = [
+  // ---- DADA ----
+  { id: "bench_press", n: "Bench Press", grup: "Dada", alat: "Barbell", set: "4 × 8-12", tip: "Turunkan bar ke dada, sikut ~45°, dorong stabil." },
+  { id: "incline_db_press", n: "Incline Dumbbell Press", grup: "Dada", alat: "Dumbbell", set: "3 × 10", tip: "Bangku miring 30°, fokus dada atas." },
+  { id: "db_fly", n: "Dumbbell Fly", grup: "Dada", alat: "Dumbbell", set: "3 × 12", tip: "Gerak seperti memeluk, sikut sedikit menekuk." },
+  { id: "pushup", n: "Push-up", grup: "Dada", alat: "Bodyweight", set: "3 × max", tip: "Badan lurus, turun sampai dada hampir lantai." },
+  { id: "chest_press_machine", n: "Chest Press (Mesin)", grup: "Dada", alat: "Mesin", set: "3 × 12", tip: "Punggung nempel, dorong perlahan." },
+  { id: "cable_crossover", n: "Cable Crossover", grup: "Dada", alat: "Kabel", set: "3 × 15", tip: "Remas dada di tengah." },
+  // ---- PUNGGUNG ----
+  { id: "pullup", n: "Pull-up", grup: "Punggung", alat: "Bodyweight", set: "3 × 6-10", tip: "Tarik dada ke bar, bahu turun." },
+  { id: "lat_pulldown", n: "Lat Pulldown", grup: "Punggung", alat: "Kabel", set: "3 × 12", tip: "Tarik ke dada atas, jangan ayun." },
+  { id: "seated_row", n: "Seated Cable Row", grup: "Punggung", alat: "Kabel", set: "3 × 12", tip: "Tarik ke perut, remas tulang belikat." },
+  { id: "bb_row", n: "Bent-over Barbell Row", grup: "Punggung", alat: "Barbell", set: "4 × 10", tip: "Punggung netral, tarik ke pusar." },
+  { id: "db_row", n: "Dumbbell Row", grup: "Punggung", alat: "Dumbbell", set: "3 × 12/sisi", tip: "Satu tangan tumpu bangku, tarik ke pinggang." },
+  { id: "deadlift", n: "Deadlift", grup: "Punggung", alat: "Barbell", set: "3 × 5-8", tip: "Punggung lurus, dorong lewat tumit." },
+  { id: "face_pull", n: "Face Pull", grup: "Punggung", alat: "Kabel", set: "3 × 15", tip: "Tarik ke wajah, bagus untuk postur." },
+  // ---- BAHU ----
+  { id: "ohp", n: "Overhead Press", grup: "Bahu", alat: "Barbell", set: "4 × 8-12", tip: "Dorong ke atas, kunci inti tubuh." },
+  { id: "db_shoulder_press", n: "Dumbbell Shoulder Press", grup: "Bahu", alat: "Dumbbell", set: "3 × 10", tip: "Dorong sampai hampir lurus." },
+  { id: "lateral_raise", n: "Lateral Raise", grup: "Bahu", alat: "Dumbbell", set: "3 × 15", tip: "Angkat ke samping setinggi bahu." },
+  { id: "front_raise", n: "Front Raise", grup: "Bahu", alat: "Dumbbell", set: "3 × 12", tip: "Angkat lurus ke depan." },
+  { id: "rear_delt_fly", n: "Rear Delt Fly", grup: "Bahu", alat: "Dumbbell", set: "3 × 15", tip: "Bungkuk, angkat ke samping-belakang." },
+  { id: "arnold_press", n: "Arnold Press", grup: "Bahu", alat: "Dumbbell", set: "3 × 10", tip: "Putar telapak saat mendorong." },
+  // ---- LENGAN ----
+  { id: "barbell_curl", n: "Barbell Curl", grup: "Lengan", alat: "Barbell", set: "3 × 12", tip: "Sikut diam, angkat dengan bicep." },
+  { id: "db_curl", n: "Dumbbell Curl", grup: "Lengan", alat: "Dumbbell", set: "3 × 12", tip: "Jangan ayun badan." },
+  { id: "hammer_curl", n: "Hammer Curl", grup: "Lengan", alat: "Dumbbell", set: "3 × 12", tip: "Telapak menghadap dalam." },
+  { id: "tricep_pushdown", n: "Tricep Pushdown", grup: "Lengan", alat: "Kabel", set: "3 × 12", tip: "Sikut menempel badan." },
+  { id: "skull_crusher", n: "Skull Crusher", grup: "Lengan", alat: "Barbell", set: "3 × 12", tip: "Turunkan ke dahi, sikut diam." },
+  { id: "tricep_dip", n: "Tricep Dip", grup: "Lengan", alat: "Bodyweight", set: "3 × 12", tip: "Turun sampai sikut 90°." },
+  { id: "overhead_tricep", n: "Overhead Tricep Extension", grup: "Lengan", alat: "Dumbbell", set: "3 × 12", tip: "Turunkan di belakang kepala." },
+  // ---- KAKI ----
+  { id: "squat", n: "Squat", grup: "Kaki", alat: "Barbell", set: "4 × 8-12", tip: "Pinggul ke belakang, lutut sejajar jari kaki." },
+  { id: "goblet_squat", n: "Goblet Squat", grup: "Kaki", alat: "Dumbbell", set: "3 × 12", tip: "Pegang dumbbell di depan dada." },
+  { id: "leg_press", n: "Leg Press", grup: "Kaki", alat: "Mesin", set: "3 × 12", tip: "Jangan kunci lutut penuh." },
+  { id: "rdl", n: "Romanian Deadlift", grup: "Kaki", alat: "Barbell", set: "3 × 10", tip: "Dorong pinggul ke belakang, rasakan hamstring." },
+  { id: "lunges", n: "Walking Lunges", grup: "Kaki", alat: "Dumbbell", set: "3 × 12/kaki", tip: "Lutut depan 90°, badan tegak." },
+  { id: "leg_ext", n: "Leg Extension", grup: "Kaki", alat: "Mesin", set: "3 × 15", tip: "Luruskan kaki, remas paha depan." },
+  { id: "leg_curl", n: "Leg Curl", grup: "Kaki", alat: "Mesin", set: "3 × 15", tip: "Tekuk, fokus hamstring." },
+  { id: "calf_raise", n: "Calf Raise", grup: "Kaki", alat: "Bodyweight", set: "4 × 20", tip: "Jinjit penuh, tahan sebentar." },
+  { id: "hip_thrust", n: "Hip Thrust", grup: "Kaki", alat: "Barbell", set: "3 × 12", tip: "Dorong pinggul, remas glutes di atas." },
+  { id: "bulgarian", n: "Bulgarian Split Squat", grup: "Kaki", alat: "Dumbbell", set: "3 × 10/kaki", tip: "Kaki belakang di bangku." },
+  // ---- CORE / PERUT ----
+  { id: "plank", n: "Plank", grup: "Core", alat: "Bodyweight", set: "3 × 45-60 dtk", tip: "Badan lurus, kencangkan perut." },
+  { id: "crunch", n: "Crunch", grup: "Core", alat: "Bodyweight", set: "3 × 20", tip: "Angkat bahu, jangan tarik leher." },
+  { id: "bicycle_crunch", n: "Bicycle Crunch", grup: "Core", alat: "Bodyweight", set: "3 × 20", tip: "Sikut ketemu lutut berlawanan." },
+  { id: "russian_twist", n: "Russian Twist", grup: "Core", alat: "Bodyweight", set: "3 × 20", tip: "Putar badan kiri-kanan." },
+  { id: "leg_raise", n: "Leg Raise", grup: "Core", alat: "Bodyweight", set: "3 × 15", tip: "Angkat kaki lurus, punggung nempel lantai." },
+  { id: "hanging_leg_raise", n: "Hanging Leg Raise", grup: "Core", alat: "Bodyweight", set: "3 × 12", tip: "Gantung, angkat lutut/kaki." },
+  { id: "mountain_climber", n: "Mountain Climbers", grup: "Core", alat: "Bodyweight", set: "3 × 30 dtk", tip: "Lari di tempat posisi plank." },
+  { id: "side_plank", n: "Side Plank", grup: "Core", alat: "Bodyweight", set: "3 × 30 dtk/sisi", tip: "Tubuh lurus menyamping." },
+  // ---- KARDIO ----
+  { id: "lari", n: "Lari", grup: "Kardio", alat: "-", set: "20-40 mnt", tip: "Jaga napas, langkah ringan." },
+  { id: "hiit", n: "HIIT Sprint", grup: "Kardio", alat: "-", set: "10-15 mnt", tip: "Sprint 30 dtk, jalan 30 dtk, ulangi." },
+  { id: "jumping_jack", n: "Jumping Jack", grup: "Kardio", alat: "Bodyweight", set: "3 × 40", tip: "Lompat buka-tutup kaki & tangan." },
+  { id: "burpees", n: "Burpees", grup: "Kardio", alat: "Bodyweight", set: "3 × 12", tip: "Squat-plank-lompat dalam satu rangkaian." },
+  { id: "high_knees", n: "High Knees", grup: "Kardio", alat: "Bodyweight", set: "3 × 40 dtk", tip: "Lari di tempat, lutut tinggi." },
+  { id: "skipping", n: "Lompat Tali (Skipping)", grup: "Kardio", alat: "Tali", set: "5-10 mnt", tip: "Lompat ringan dari pergelangan tangan." },
+  { id: "cycling", n: "Sepeda Statis", grup: "Kardio", alat: "Mesin", set: "20-30 mnt", tip: "Jaga kadens stabil." },
+  { id: "badminton_ex", n: "Badminton", grup: "Kardio", alat: "-", set: "60-120 mnt", tip: "Gerak kaki aktif, pemanasan dulu." },
+];
+
 const NAMA_HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 // Perkiraan kalori terbakar per menit (kasar, untuk estimasi)

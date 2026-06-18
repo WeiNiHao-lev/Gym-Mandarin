@@ -557,38 +557,55 @@ function estimasiBurn(key, durasi) {
   const rate = prog.cardio ? (KALORI_PER_MENIT[prog.cardio.jenis] || 8) : KALORI_PER_MENIT["Angkat beban / Gym"];
   return Math.round((durasi || 0) * rate);
 }
+let gymPicker = { open: false, grup: "", q: "" };
+function ensureWorkout(dk, hari) {
+  if (!DB.workouts[dk]) DB.workouts[dk] = { done: [], durasi: 0, catatan: "", programKey: SCHEDULE[hari] };
+  return DB.workouts[dk];
+}
+function dayList(w, key) {
+  if (w.list) return w.list;
+  return ((PROGRAM_LIB[key] && PROGRAM_LIB[key].exercises) || []).map(e => ({ n: e.n, d: e.d }));
+}
 function renderGymToday() {
   const tk = todayKey(), hari = new Date().getDay();
-  const defKey = SCHEDULE[hari], key = progKeyFor(tk, hari);
-  const prog = PROGRAM_LIB[key] || PROGRAM_LIB[defKey];
+  const defKey = SCHEDULE[hari];
   const w = DB.workouts[tk] || { done: [], durasi: 0, catatan: "" };
+  const key = w.programKey || defKey;
+  const prog = PROGRAM_LIB[key] || PROGRAM_LIB[defKey];
+  const list = dayList(w, key);
   const area = document.getElementById("gymTodayArea");
   area.innerHTML = `
     <div class="card" style="background:linear-gradient(160deg,#e3f6f3,#e6f0fc)">
       <div class="muted small">${NAMA_HARI[hari]}</div>
       <h3 style="margin:2px 0;font-size:20px">${prog.emoji} ${prog.nama}</h3>
-      <div class="small muted">${prog.fokus}</div>
-      ${prog.cardio ? `<div class="small mt" style="color:var(--accent)">🏃 ${prog.cardio.jenis} · ${prog.cardio.durasi} mnt</div>` : ""}
+      <div class="small muted">${prog.fokus} · ${list.length} gerakan</div>
     </div>
+
+    <details class="card tight">
+      <summary style="cursor:pointer;font-weight:700;color:var(--primary-d)">📋 Mulai dari template (opsional)</summary>
+      <select id="gProg" class="mt" onchange="muatProgram(this.value)">
+        <option value="">— pilih template untuk memuat gerakannya —</option>
+        ${Object.keys(PROGRAM_LIB).map(k => `<option value="${k}">${PROGRAM_LIB[k].emoji} ${PROGRAM_LIB[k].nama}${k === defKey ? " — disarankan" : ""}</option>`).join("")}
+      </select>
+      <div class="small muted mt">Saran hari ini: <b>${PROGRAM_LIB[defKey].emoji} ${PROGRAM_LIB[defKey].nama}</b>. Memilih template akan mengisi daftar gerakan di bawah (bisa kamu ubah).</div>
+    </details>
 
     <div class="card">
-      <h3>🔄 Pilih Program</h3>
-      <select id="gProg" onchange="setProgramHariIni(this.value)">
-        ${Object.keys(PROGRAM_LIB).map(k => `<option value="${k}" ${k === key ? "selected" : ""}>${PROGRAM_LIB[k].emoji} ${PROGRAM_LIB[k].nama}${k === defKey ? " — disarankan" : ""}</option>`).join("")}
-      </select>
-      <div class="small muted mt">Saran hari ini: <b>${PROGRAM_LIB[defKey].emoji} ${PROGRAM_LIB[defKey].nama}</b> — bebas ganti sesuai mood. ${key !== defKey ? `<button class="btn xs ghost" onclick="setProgramHariIni('${defKey}')">pakai saran</button>` : ""}</div>
-    </div>
-
-    ${prog.exercises.length ? `<div class="card">
-      <h3>✅ Checklist Latihan</h3>
-      ${prog.exercises.map(ex => {
+      <div class="row spread"><h3 style="margin:0">🏋️ Gerakan Hari Ini</h3>
+        <button class="btn sm" onclick="togglePicker()">${gymPicker.open ? "Tutup ✕" : "➕ Tambah gerakan"}</button></div>
+      ${gymPicker.open ? renderExercisePicker() : ""}
+      <div class="mt">
+      ${list.length ? list.map((ex, idx) => {
         const done = w.done.includes(ex.n);
-        return `<label class="checkrow ${done ? "done" : ""}">
+        return `<div class="checkrow ${done ? "done" : ""}">
           <input type="checkbox" ${done ? "checked" : ""} onchange="toggleEx('${esc(ex.n)}')">
-          <span class="grow"><span class="ex-name">${esc(ex.n)}</span><div class="ex-d">${esc(ex.d)}</div></span>
-        </label>`;
-      }).join("")}
-    </div>` : `<div class="card"><h3>✍️ Latihan Bebas</h3><div class="small muted">Program custom — langsung catat durasi & kalori di bawah, atau tulis detail latihanmu di catatan.</div></div>`}
+          <span class="grow"><span class="ex-name">${esc(ex.n)}</span><div class="ex-d">${esc(ex.d || "")}</div></span>
+          <button class="btn xs ghost" title="Video tutorial" onclick="bukaVideo('${esc(ex.n)}')">▶️</button>
+          <button class="btn xs ghost" title="Hapus" onclick="hapusGerakan(${idx})">🗑</button>
+        </div>`;
+      }).join("") : `<div class="empty">Belum ada gerakan. Pilih template di atas, atau tap "➕ Tambah gerakan".</div>`}
+      </div>
+    </div>
 
     <div class="card">
       <h3>⏱️ Durasi, Kalori & Catatan</h3>
@@ -608,13 +625,65 @@ function renderGymToday() {
   `;
   hitungBurn();
 }
-function setProgramHariIni(key) {
+function renderExercisePicker() {
+  return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:8px">
+    <input id="pickQ" placeholder="🔍 Cari gerakan (mis. squat, dada...)" value="${esc(gymPicker.q)}" oninput="gymPicker.q=this.value;refreshPicker()">
+    <div id="pickBody" class="mt">${pickerBodyHTML()}</div>
+  </div>`;
+}
+function pickerBodyHTML() {
+  let list = EXERCISES.slice();
+  if (gymPicker.grup) list = list.filter(e => e.grup === gymPicker.grup);
+  if (gymPicker.q) { const q = gymPicker.q.toLowerCase(); list = list.filter(e => e.n.toLowerCase().includes(q) || e.grup.toLowerCase().includes(q)); }
+  return `<div class="row wrap mb">
+      <button class="lvl-chip ${gymPicker.grup === "" ? "on" : ""}" onclick="gymPicker.grup='';refreshPicker()">Semua</button>
+      ${EX_GRUP.map(g => `<button class="lvl-chip ${gymPicker.grup === g ? "on" : ""}" onclick="gymPicker.grup='${g}';refreshPicker()">${g}</button>`).join("")}
+    </div>
+    <div style="max-height:300px;overflow-y:auto">
+    ${list.map(e => `<div class="litem">
+      <div class="grow"><b>${esc(e.n)}</b> <span class="tag">${e.grup}</span>
+        <div><small>${esc(e.alat)} · ${esc(e.set)}</small></div>
+        <div><small class="muted">💡 ${esc(e.tip)}</small></div></div>
+      <div class="row">
+        <button class="btn xs ghost" title="Video tutorial" onclick="bukaVideo('${esc(e.n)}')">▶️</button>
+        <button class="btn xs" onclick="tambahGerakan('${e.id}')">➕</button>
+      </div>
+    </div>`).join("") || `<div class="empty">Tidak ada gerakan cocok.</div>`}
+    </div>`;
+}
+function refreshPicker() { const b = document.getElementById("pickBody"); if (b) b.innerHTML = pickerBodyHTML(); }
+function togglePicker() { gymPicker.open = !gymPicker.open; renderGymToday(); }
+function muatProgram(key) {
+  if (!key) return;
   const tk = todayKey(), hari = new Date().getDay();
-  const w = DB.workouts[tk] || { done: [], durasi: 0, catatan: "" };
+  const w = ensureWorkout(tk, hari);
   w.programKey = key;
-  DB.workouts[tk] = w; save();
-  renderGymToday();
+  w.list = ((PROGRAM_LIB[key] && PROGRAM_LIB[key].exercises) || []).map(e => ({ n: e.n, d: e.d }));
+  w.done = w.done.filter(n => w.list.some(x => x.n === n));
+  save(); renderGymToday();
   if (currentView === "home") renderHome();
+  toast("Gerakan dimuat dari " + PROGRAM_LIB[key].nama);
+}
+function tambahGerakan(id) {
+  const e = EXERCISES.find(x => x.id === id); if (!e) return;
+  const tk = todayKey(), hari = new Date().getDay();
+  const w = ensureWorkout(tk, hari);
+  if (!w.list) w.list = dayList(w, w.programKey || SCHEDULE[hari]).slice();
+  if (w.list.some(x => x.n === e.n)) { toast(e.n + " sudah ada"); return; }
+  w.list.push({ n: e.n, d: e.set, id: e.id });
+  save(); renderGymToday(); toast("➕ " + e.n);
+}
+function hapusGerakan(idx) {
+  const tk = todayKey(), hari = new Date().getDay();
+  const w = ensureWorkout(tk, hari);
+  if (!w.list) w.list = dayList(w, w.programKey || SCHEDULE[hari]).slice();
+  const removed = w.list.splice(idx, 1)[0];
+  if (removed) w.done = w.done.filter(n => n !== removed.n);
+  save(); renderGymToday();
+}
+function bukaVideo(name) {
+  const q = encodeURIComponent(name + " tutorial cara yang benar");
+  window.open("https://www.youtube.com/results?search_query=" + q, "_blank");
 }
 function toggleEx(name) {
   const tk = todayKey(), hari = new Date().getDay();
