@@ -85,7 +85,7 @@ async function syncPull() {
   if (!SYNC.client || !SYNC.user) return;
   try {
     const { data, error } = await SYNC.client
-      .from("app_data").select("data,updated_at").eq("user_id", SYNC.user.id).maybeSingle();
+      .from("gymmandarin_data").select("data,updated_at").eq("user_id", SYNC.user.id).maybeSingle();
     if (error) { console.warn("pull:", error.message); return; }
     const localTs = +(localStorage.getItem("gm_ts") || 0);
     if (data && data.data) {
@@ -113,7 +113,7 @@ async function syncPushNow(localData) {
   if (!SYNC.client || !SYNC.user || !localData) return;
   try {
     const ts = new Date().toISOString();
-    const { error } = await SYNC.client.from("app_data")
+    const { error } = await SYNC.client.from("gymmandarin_data")
       .upsert({ user_id: SYNC.user.id, data: localData, updated_at: ts });
     if (error) { console.warn("push:", error.message); _toast("Gagal sinkron: " + error.message); return; }
     localStorage.setItem("gm_ts", String(Date.parse(ts)));
