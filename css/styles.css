@@ -223,6 +223,33 @@ hr.sep { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
 details summary { color: var(--primary-d); }
 
+/* ---------- AUTH GATE (gerbang login) ---------- */
+body.locked { overflow: hidden; }
+body.locked .app-header, body.locked main, body.locked .bottom-nav, body.locked #reminderBanner { display: none !important; }
+.auth-gate {
+  position: fixed; inset: 0; z-index: 100; overflow-y: auto;
+  background: linear-gradient(160deg, #eaf3fd, #dcebf8);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; padding-top: max(24px, env(safe-area-inset-top));
+}
+.auth-card { width: 100%; max-width: 380px; text-align: center; }
+.auth-logo {
+  width: 64px; height: 64px; border-radius: 18px; margin: 0 auto 14px;
+  display: grid; place-items: center; font-size: 34px; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, #5b9bd5, #57c4b8); box-shadow: 0 10px 24px rgba(91,155,213,.35);
+}
+.auth-card h1 { font-size: 26px; color: #2c3b54; margin-bottom: 4px; font-weight: 800; }
+.auth-card .sub { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+.auth-box { background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); text-align: left; }
+.auth-box label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 5px; font-weight: 600; }
+.auth-box input { margin-bottom: 14px; }
+.auth-msg { font-size: 13px; margin-bottom: 10px; min-height: 1px; }
+.auth-msg.err { color: #c96b7e; } .auth-msg.ok { color: var(--primary-d); }
+.auth-toggle { text-align: center; margin-top: 14px; font-size: 14px; color: var(--muted); }
+.auth-toggle a { color: var(--primary-d); font-weight: 700; cursor: pointer; }
+.auth-skip { display: block; text-align: center; margin-top: 16px; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: underline; }
+.auth-foot { text-align: center; font-size: 12px; color: var(--muted); margin-top: 18px; }
+
 @media (min-width: 720px) {
   .flash-hanzi { font-size: 120px; }
   body { padding-bottom: 100px; }

@@ -935,51 +935,97 @@ function sparkline() {
 }
 
 /* ============================================================
+   GERBANG LOGIN (AUTH GATE) — login dulu sebelum pakai
+   ============================================================ */
+function hasSession() {
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && /sb-.*-auth-token/.test(k)) {
+      const v = localStorage.getItem(k);
+      if (v && v !== "null" && v !== "[]") return true;
+    }
+  }
+  return false;
+}
+let gateMode = "login";
+function updateGate() {
+  const signedIn = (typeof SYNC !== "undefined" && SYNC.status === "signedin");
+  const g = document.getElementById("authGate");
+  if (signedIn || hasSession() || localStorage.getItem("gm_skipAuth") === "1") {
+    document.body.classList.remove("locked");
+    if (g) g.style.display = "none";
+  } else {
+    document.body.classList.add("locked");
+    if (g) { g.style.display = "flex"; renderAuthGate(); }
+  }
+}
+function renderAuthGate() {
+  const g = document.getElementById("authGate"); if (!g) return;
+  const isReg = gateMode === "register";
+  g.innerHTML = `<div class="auth-card">
+    <div class="auth-logo">中</div>
+    <h1>GymMandarin</h1>
+    <div class="sub">${isReg ? "Buat akun untuk simpan & sinkron datamu" : "Masuk untuk lanjut belajar & tracking"}</div>
+    <div class="auth-box">
+      <label>Email</label>
+      <input id="gateEmail" type="email" placeholder="kamu@email.com" autocomplete="email">
+      <label>Password</label>
+      <input id="gatePass" type="password" placeholder="minimal 6 karakter" autocomplete="${isReg ? "new-password" : "current-password"}"
+        onkeydown="if(event.key==='Enter'){${isReg ? "gateRegister()" : "gateLogin()"}}">
+      <div id="gateMsg" class="auth-msg"></div>
+      <button class="btn full" onclick="${isReg ? "gateRegister()" : "gateLogin()"}">${isReg ? "Daftar" : "Masuk"}</button>
+      <div class="auth-toggle">${isReg
+        ? `Sudah punya akun? <a onclick="gateSwitch('login')">Masuk</a>`
+        : `Belum punya akun? <a onclick="gateSwitch('register')">Daftar</a>`}</div>
+    </div>
+    <span class="auth-skip" onclick="gateSkip()">Lewati dulu — pakai tanpa akun (data lokal saja)</span>
+    <div class="auth-foot">🔒 Datamu tersimpan aman & hanya bisa diakses olehmu.</div>
+  </div>`;
+}
+function gateSwitch(m) { gateMode = m; renderAuthGate(); }
+function gateMsg(t, ok) { const m = document.getElementById("gateMsg"); if (m) { m.textContent = t; m.className = "auth-msg " + (ok ? "ok" : "err"); } }
+async function gateLogin() {
+  const e = (document.getElementById("gateEmail").value || "").trim(), p = document.getElementById("gatePass").value || "";
+  if (!e || !p) { gateMsg("Isi email & password."); return; }
+  gateMsg("Masuk…", true);
+  if (window.syncSignIn) await window.syncSignIn(e, p);
+  if (typeof SYNC !== "undefined" && SYNC.status === "signedin") { localStorage.removeItem("gm_skipAuth"); updateGate(); }
+  else gateMsg((typeof SYNC !== "undefined" && SYNC.msg) || "Email atau password salah.");
+}
+async function gateRegister() {
+  const e = (document.getElementById("gateEmail").value || "").trim(), p = document.getElementById("gatePass").value || "";
+  if (!e || !p) { gateMsg("Isi email & password."); return; }
+  if (p.length < 6) { gateMsg("Password minimal 6 karakter."); return; }
+  gateMsg("Membuat akun…", true);
+  if (window.syncSignUp) await window.syncSignUp(e, p);
+  if (typeof SYNC !== "undefined" && SYNC.status === "signedin") { localStorage.removeItem("gm_skipAuth"); updateGate(); }
+  else gateMsg((typeof SYNC !== "undefined" && SYNC.msg) || "Gagal daftar. Coba email lain.");
+}
+function gateSkip() { localStorage.setItem("gm_skipAuth", "1"); updateGate(); toast("Mode lokal — data hanya di perangkat ini"); }
+function showGate() { localStorage.removeItem("gm_skipAuth"); gateMode = "login"; updateGate(); }
+function gateLogout() {
+  localStorage.removeItem("gm_skipAuth");
+  if (window.syncSignOut) window.syncSignOut();
+  gateMode = "login"; updateGate();
+}
+
+/* ============================================================
    PENGATURAN
    ============================================================ */
 function renderSyncCard() {
   if (typeof SYNC === "undefined") return "";
   let inner;
-  if (!SYNC.url || !SYNC.key) {
-    inner = `
-      <div class="small muted mb">Sinkronkan data antara HP & laptop lewat Supabase. Tempel <b>Project URL</b> & <b>anon public key</b> dari Supabase (Settings → API).</div>
-      <label class="field"><span>Project URL</span><input id="syncUrl" placeholder="https://xxxx.supabase.co"></label>
-      <label class="field"><span>anon public key</span><input id="syncKey" placeholder="eyJhbGci..."></label>
-      <button class="btn full" onclick="doSyncConfigure()">Hubungkan</button>`;
-  } else if (SYNC.status === "signedin") {
-    inner = `
-      <div class="small down mb">✅ Tersinkron sebagai <b>${esc((SYNC.user && SYNC.user.email) || "")}</b></div>
+  if (SYNC.status === "signedin") {
+    inner = `<div class="small down mb">✅ Login sebagai <b>${esc((SYNC.user && SYNC.user.email) || "")}</b> — data tersinkron lintas perangkat.</div>
       <div class="grid2">
         <button class="btn green" onclick="doSyncManual()">☁️ Sinkron sekarang</button>
-        <button class="btn sec" onclick="syncSignOut()">Logout</button>
-      </div>
-      <button class="btn ghost full mt" onclick="if(confirm('Lupakan project Supabase di perangkat ini?'))syncForget()">Ganti project</button>`;
-  } else if (SYNC.status === "error") {
-    inner = `<div class="small up mb">⚠️ ${esc(SYNC.msg || "Gagal terhubung ke Supabase")}</div>
-      <button class="btn ghost full" onclick="syncForget()">Atur ulang</button>`;
+        <button class="btn sec" onclick="gateLogout()">Logout</button>
+      </div>`;
   } else {
-    inner = `
-      <div class="small muted mb">Masuk untuk mulai sinkron. Pakai email & password yang <b>sama</b> di HP & laptop.</div>
-      <label class="field"><span>Email</span><input id="syncEmail" type="email" placeholder="email kamu"></label>
-      <label class="field"><span>Password</span><input id="syncPw" type="password" placeholder="minimal 6 karakter"></label>
-      <div class="grid2">
-        <button class="btn" onclick="doSyncSignIn('in')">Masuk</button>
-        <button class="btn sec" onclick="doSyncSignIn('up')">Daftar baru</button>
-      </div>
-      <button class="btn ghost full mt" onclick="if(confirm('Lupakan project Supabase di perangkat ini?'))syncForget()">Ganti project</button>`;
+    inner = `<div class="small muted mb">Kamu pakai <b>mode lokal</b> — data hanya di perangkat ini. Login untuk simpan & sinkron ke HP/laptop lain.</div>
+      <button class="btn full" onclick="showGate()">Login / Daftar</button>`;
   }
-  return `<div class="card"><h3>☁️ Cloud Sync (Supabase)</h3>${inner}</div>`;
-}
-function doSyncConfigure() {
-  const u = document.getElementById("syncUrl").value, k = document.getElementById("syncKey").value;
-  if (!u || !k) { toast("Isi URL & anon key"); return; }
-  toast("Menghubungkan...");
-  syncConfigure(u, k);
-}
-function doSyncSignIn(mode) {
-  const e = document.getElementById("syncEmail").value, p = document.getElementById("syncPw").value;
-  if (!e || !p) { toast("Isi email & password"); return; }
-  if (mode === "up") syncSignUp(e, p); else syncSignIn(e, p);
+  return `<div class="card"><h3>☁️ Cloud Sync</h3>${inner}</div>`;
 }
 function doSyncManual() { if (typeof syncPushNow === "function") { syncPushNow(DB); toast("Menyinkronkan..."); } }
 
@@ -1117,6 +1163,7 @@ function cekNotif() {
    INIT
    ============================================================ */
 function init() {
+  updateGate(); // tentukan gerbang login (cek sesi tersimpan secara sinkron)
   const hari = new Date().getDay();
   document.getElementById("todayLabel").innerHTML = `${NAMA_HARI[hari]}<br>${PROGRAM[hari].emoji} ${PROGRAM[hari].nama}`;
   renderHome();

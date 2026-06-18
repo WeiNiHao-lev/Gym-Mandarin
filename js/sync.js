@@ -55,13 +55,17 @@ async function syncSignUp(email, pw) {
     const { data, error } = await SYNC.client.auth.signUp({ email, password: pw });
     if (error) throw error;
     if (data.session) {
-      SYNC.user = data.user; SYNC.status = "signedin"; await syncPull();
+      SYNC.user = data.user; SYNC.status = "signedin"; SYNC.msg = ""; await syncPull();
       _toast("Akun dibuat & tersinkron ☁️");
     } else {
-      _toast('Akun dibuat. Matikan "Confirm email" di Supabase lalu Masuk.');
+      SYNC.msg = "Akun dibuat — silakan Masuk.";
     }
     syncRefreshUI();
-  } catch (e) { _toast("Daftar gagal: " + ((e && e.message) || e)); }
+  } catch (e) {
+    const m = (e && e.message) || String(e);
+    SYNC.msg = /already registered|already exists/i.test(m) ? "Email sudah terdaftar — coba Masuk." : m;
+    syncRefreshUI();
+  }
 }
 
 async function syncSignIn(email, pw) {
@@ -69,11 +73,15 @@ async function syncSignIn(email, pw) {
   try {
     const { data, error } = await SYNC.client.auth.signInWithPassword({ email, password: pw });
     if (error) throw error;
-    SYNC.user = data.user; SYNC.status = "signedin";
+    SYNC.user = data.user; SYNC.status = "signedin"; SYNC.msg = "";
     await syncPull();
     _toast("Login sukses, data tersinkron ☁️");
     syncRefreshUI();
-  } catch (e) { _toast("Login gagal: " + ((e && e.message) || e)); }
+  } catch (e) {
+    const m = (e && e.message) || String(e);
+    SYNC.msg = /invalid login credentials/i.test(m) ? "Email atau password salah." : m;
+    syncRefreshUI();
+  }
 }
 
 async function syncSignOut() {
@@ -121,6 +129,7 @@ async function syncPushNow(localData) {
 }
 
 function syncRefreshUI() {
+  if (window.updateGate) { try { window.updateGate(); } catch (e) {} }
   if (typeof currentView !== "undefined" && currentView === "setting" && typeof renderSetting === "function") {
     try { renderSetting(); } catch (e) {}
   }
