@@ -4,8 +4,8 @@
     {
       "name": "gymmandarin",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8795"],
-      "port": 8795
+      "runtimeArgs": ["-m", "http.server", "8797"],
+      "port": 8797
     }
   ]
 }

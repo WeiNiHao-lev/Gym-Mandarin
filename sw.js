@@ -1,5 +1,5 @@
 /* Service Worker — network-first (selalu update saat online, tetap jalan offline) */
-const CACHE = "gymmandarin-v5";
+const CACHE = "gymmandarin-v6";
 const ASSETS = [
   "./",
   "./index.html",
