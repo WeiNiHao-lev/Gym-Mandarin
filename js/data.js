@@ -653,7 +653,35 @@ const EXERCISES = [
   { id: "skipping", n: "Lompat Tali (Skipping)", grup: "Kardio", alat: "Tali", set: "5-10 mnt", tip: "Lompat ringan dari pergelangan tangan." },
   { id: "cycling", n: "Sepeda Statis", grup: "Kardio", alat: "Mesin", set: "20-30 mnt", tip: "Jaga kadens stabil." },
   { id: "badminton_ex", n: "Badminton", grup: "Kardio", alat: "-", set: "60-120 mnt", tip: "Gerak kaki aktif, pemanasan dulu." },
+  // ---- TAMBAHAN BODYWEIGHT (untuk opsi tanpa alat) ----
+  { id: "bw_squat", n: "Bodyweight Squat", grup: "Kaki", alat: "Bodyweight", set: "4 × 20", tip: "Pinggul ke belakang, dada tegak." },
+  { id: "bw_lunge", n: "Lunges (tanpa beban)", grup: "Kaki", alat: "Bodyweight", set: "3 × 12/kaki", tip: "Langkah, lutut depan 90°." },
+  { id: "glute_bridge", n: "Glute Bridge", grup: "Kaki", alat: "Bodyweight", set: "3 × 20", tip: "Dorong pinggul ke atas, remas glutes." },
+  { id: "jump_squat", n: "Jump Squat", grup: "Kaki", alat: "Bodyweight", set: "3 × 15", tip: "Squat lalu lompat eksplosif." },
+  { id: "wall_sit", n: "Wall Sit", grup: "Kaki", alat: "Bodyweight", set: "3 × 45 dtk", tip: "Punggung di tembok, paha sejajar lantai." },
+  { id: "diamond_pushup", n: "Diamond Push-up", grup: "Dada", alat: "Bodyweight", set: "3 × 12", tip: "Tangan rapat bentuk berlian (dada & trisep)." },
+  { id: "incline_pushup", n: "Incline Push-up", grup: "Dada", alat: "Bodyweight", set: "3 × 15", tip: "Tangan di bangku/meja, versi lebih ringan." },
+  { id: "inverted_row", n: "Inverted Row", grup: "Punggung", alat: "Bodyweight", set: "3 × 12", tip: "Tarik dada ke batang rendah / meja kokoh." },
+  { id: "superman", n: "Superman", grup: "Punggung", alat: "Bodyweight", set: "3 × 15", tip: "Telungkup, angkat tangan & kaki bersamaan." },
+  { id: "pike_pushup", n: "Pike Push-up", grup: "Bahu", alat: "Bodyweight", set: "3 × 12", tip: "Posisi V-terbalik, dorong untuk bahu." },
+  { id: "chinup", n: "Chin-up", grup: "Lengan", alat: "Bodyweight", set: "3 × 8", tip: "Pegangan telapak menghadap diri (bicep)." },
+  { id: "bench_dip", n: "Bench Dip", grup: "Lengan", alat: "Bodyweight", set: "3 × 15", tip: "Tumpu di bangku, turunkan badan (trisep)." },
 ];
+
+/* ---------- JADWAL OTOMATIS: preset alat & level ---------- */
+const EQUIP = {
+  gym:        { label: "Gym lengkap (semua alat)", alat: ["Barbell", "Dumbbell", "Mesin", "Kabel", "Bodyweight", "Tali", "-"] },
+  barbel_db:  { label: "Barbell + Dumbbell", alat: ["Barbell", "Dumbbell", "Bodyweight", "Tali", "-"] },
+  dumbbell:   { label: "Dumbbell saja", alat: ["Dumbbell", "Bodyweight", "Tali", "-"] },
+  barbell:    { label: "Barbell saja", alat: ["Barbell", "Bodyweight", "Tali", "-"] },
+  bodyweight: { label: "Tanpa alat (bodyweight)", alat: ["Bodyweight", "Tali", "-"] },
+};
+const LEVELS = {
+  pemula:   { label: "Pemula", n: 4 },
+  menengah: { label: "Menengah", n: 6 },
+  lanjutan: { label: "Lanjutan", n: 8 },
+};
+const GRUP_EMOJI = { Dada: "💪", Punggung: "🔙", Bahu: "🙆", Lengan: "💪", Kaki: "🦵", Core: "🎯", Kardio: "🏃" };
 
 const NAMA_HARI = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 

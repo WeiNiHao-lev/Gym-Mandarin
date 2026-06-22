@@ -43,6 +43,7 @@ const DEFAULT_DB = () => ({
   flashLevels: [1, 2, 3, 4],
   streak: { mandarin: 0, lastMandarin: "" },
   notif: false,
+  jadwal: { aktif: false, level: "menengah", alat: "gym", days: {}, generated: {} },
 });
 
 let DB = load();
@@ -201,7 +202,7 @@ function speak(text) {
    ============================================================ */
 function renderHome() {
   const tk = todayKey(), hari = new Date().getDay();
-  const prog = PROGRAM_LIB[progKeyFor(tk, hari)] || PROGRAM[hari];
+  const prog = currentPlan(tk, hari);
   const w = DB.workouts[tk] || {};
   const durasi = w.durasi || 0;
   const d = DB.daily[tk] || {};
@@ -570,32 +571,73 @@ function tambahVocab() {
    ============================================================ */
 function renderGym() {
   if (document.querySelector("#sub-hariini").classList.contains("active")) renderGymToday();
+  if (document.querySelector("#sub-jadwal") && document.querySelector("#sub-jadwal").classList.contains("active")) renderJadwal();
   if (document.querySelector("#sub-program").classList.contains("active")) renderProgram();
   if (document.querySelector("#sub-riwayat").classList.contains("active")) renderGymRiwayat();
 }
 
-function progKeyFor(dk, day) { return (DB.workouts[dk] && DB.workouts[dk].programKey) || SCHEDULE[day]; }
-function estimasiBurn(key, durasi) {
-  const prog = PROGRAM_LIB[key] || {};
-  const rate = prog.cardio ? (KALORI_PER_MENIT[prog.cardio.jenis] || 8) : KALORI_PER_MENIT["Angkat beban / Gym"];
+/* Rencana default sebuah hari: dari Jadwal Otomatis (kalau aktif) atau jadwal bawaan */
+function dayPlan(day) {
+  const j = DB.jadwal;
+  if (j && j.aktif && j.generated && j.generated[day]) return j.generated[day];
+  return PROGRAM_LIB[SCHEDULE[day]];
+}
+/* Rencana yang sedang dipakai: template pilihan user (programKey) atau default hari itu */
+function currentPlan(dk, day) {
+  const w = DB.workouts[dk];
+  if (w && w.programKey && PROGRAM_LIB[w.programKey]) return PROGRAM_LIB[w.programKey];
+  return dayPlan(day);
+}
+function estimasiBurn(plan, durasi) {
+  const rate = plan && plan.cardio ? (KALORI_PER_MENIT[plan.cardio.jenis] || 8) : KALORI_PER_MENIT["Angkat beban / Gym"];
   return Math.round((durasi || 0) * rate);
+}
+
+/* ---------- GENERATOR JADWAL OTOMATIS ---------- */
+function generateJadwal(level, alat, daysGroups) {
+  const lv = LEVELS[level] || LEVELS.menengah;
+  const allowed = (EQUIP[alat] || EQUIP.gym).alat;
+  const gen = {};
+  for (let day = 0; day <= 6; day++) {
+    const raw = daysGroups[day] || [];
+    const groups = raw.filter(g => g !== "Istirahat");
+    if (raw.includes("Istirahat") || !groups.length) {
+      gen[day] = { nama: "Istirahat", emoji: "🛌", fokus: "Pemulihan penuh", exercises: [], cardio: null, target: 0 };
+      continue;
+    }
+    const perGroup = Math.max(1, Math.round(lv.n / groups.length));
+    const exercises = [];
+    let cardio = null;
+    groups.forEach(g => {
+      const pool = EXERCISES.filter(e => e.grup === g && allowed.includes(e.alat));
+      pool.slice(0, perGroup).forEach(e => {
+        exercises.push({ n: e.n, d: e.set });
+        if (g === "Kardio" && !cardio) cardio = { jenis: /lari/i.test(e.n) ? "Lari" : /hiit|sprint/i.test(e.n) ? "HIIT" : "Lari + Kardio", durasi: 25 };
+      });
+    });
+    gen[day] = {
+      nama: groups.join(" + "), emoji: GRUP_EMOJI[groups[0]] || "🏋️",
+      fokus: "Latihan " + groups.join(", "), exercises, cardio, target: cardio ? 40 : 45,
+    };
+  }
+  return gen;
 }
 let gymPicker = { open: false, grup: "", q: "" };
 function ensureWorkout(dk, hari) {
   if (!DB.workouts[dk]) DB.workouts[dk] = { done: [], durasi: 0, catatan: "", programKey: SCHEDULE[hari] };
   return DB.workouts[dk];
 }
-function dayList(w, key) {
+function dayList(w, plan) {
   if (w.list) return w.list;
-  return ((PROGRAM_LIB[key] && PROGRAM_LIB[key].exercises) || []).map(e => ({ n: e.n, d: e.d }));
+  return ((plan && plan.exercises) || []).map(e => ({ n: e.n, d: e.d || e.set || "" }));
 }
 function renderGymToday() {
   const tk = todayKey(), hari = new Date().getDay();
   const defKey = SCHEDULE[hari];
+  const defaultPlan = dayPlan(hari);
   const w = DB.workouts[tk] || { done: [], durasi: 0, catatan: "" };
-  const key = w.programKey || defKey;
-  const prog = PROGRAM_LIB[key] || PROGRAM_LIB[defKey];
-  const list = dayList(w, key);
+  const prog = currentPlan(tk, hari);
+  const list = dayList(w, prog);
   const area = document.getElementById("gymTodayArea");
   area.innerHTML = `
     <div class="card" style="background:linear-gradient(160deg,#e3f6f3,#e6f0fc)">
@@ -610,7 +652,7 @@ function renderGymToday() {
         <option value="">— pilih template untuk memuat gerakannya —</option>
         ${Object.keys(PROGRAM_LIB).map(k => `<option value="${k}">${PROGRAM_LIB[k].emoji} ${PROGRAM_LIB[k].nama}${k === defKey ? " — disarankan" : ""}</option>`).join("")}
       </select>
-      <div class="small muted mt">Saran hari ini: <b>${PROGRAM_LIB[defKey].emoji} ${PROGRAM_LIB[defKey].nama}</b>. Memilih template akan mengisi daftar gerakan di bawah (bisa kamu ubah).</div>
+      <div class="small muted mt">Default hari ini: <b>${defaultPlan.emoji} ${defaultPlan.nama}</b>${DB.jadwal && DB.jadwal.aktif ? " (dari Jadwal Otomatis)" : ""}. Memilih template akan menimpa daftar gerakan di bawah.</div>
     </details>
 
     <div class="card">
@@ -691,7 +733,7 @@ function tambahGerakan(id) {
   const e = EXERCISES.find(x => x.id === id); if (!e) return;
   const tk = todayKey(), hari = new Date().getDay();
   const w = ensureWorkout(tk, hari);
-  if (!w.list) w.list = dayList(w, w.programKey || SCHEDULE[hari]).slice();
+  if (!w.list) w.list = dayList(w, currentPlan(tk, hari)).slice();
   if (w.list.some(x => x.n === e.n)) { toast(e.n + " sudah ada"); return; }
   w.list.push({ n: e.n, d: e.set, id: e.id });
   save(); renderGymToday(); toast("➕ " + e.n);
@@ -699,7 +741,7 @@ function tambahGerakan(id) {
 function hapusGerakan(idx) {
   const tk = todayKey(), hari = new Date().getDay();
   const w = ensureWorkout(tk, hari);
-  if (!w.list) w.list = dayList(w, w.programKey || SCHEDULE[hari]).slice();
+  if (!w.list) w.list = dayList(w, currentPlan(tk, hari)).slice();
   const removed = w.list.splice(idx, 1)[0];
   if (removed) w.done = w.done.filter(n => n !== removed.n);
   save(); renderGymToday();
@@ -716,9 +758,9 @@ function toggleEx(name) {
   DB.workouts[tk] = w; save();
 }
 function hitungBurn() {
-  const tk = todayKey(), hari = new Date().getDay(), key = progKeyFor(tk, hari);
+  const tk = todayKey(), hari = new Date().getDay();
   const durasi = +(document.getElementById("gDurasi")?.value || 0);
-  const est = estimasiBurn(key, durasi);
+  const est = estimasiBurn(currentPlan(tk, hari), durasi);
   const kalField = document.getElementById("gKalori");
   const manual = kalField ? +(kalField.value || 0) : 0;
   if (kalField && !kalField.value) kalField.placeholder = est ? est + " (otomatis)" : "otomatis";
@@ -730,10 +772,10 @@ function hitungBurn() {
   return shown;
 }
 function isiBurnOtomatis() {
-  const tk = todayKey(), hari = new Date().getDay(), key = progKeyFor(tk, hari);
+  const tk = todayKey(), hari = new Date().getDay();
   const durasi = +(document.getElementById("gDurasi")?.value || 0);
   if (!durasi) { toast("Isi durasi dulu"); return; }
-  document.getElementById("gKalori").value = estimasiBurn(key, durasi);
+  document.getElementById("gKalori").value = estimasiBurn(currentPlan(tk, hari), durasi);
   hitungBurn();
 }
 function simpanWorkout() {
@@ -742,7 +784,8 @@ function simpanWorkout() {
   if (!w.programKey) w.programKey = SCHEDULE[hari];
   w.durasi = +(document.getElementById("gDurasi").value || 0);
   const manual = +(document.getElementById("gKalori").value || 0);
-  w.kaloriTerbakar = manual || estimasiBurn(w.programKey, w.durasi);
+  const planNow = (w.programKey && PROGRAM_LIB[w.programKey]) ? PROGRAM_LIB[w.programKey] : dayPlan(hari);
+  w.kaloriTerbakar = manual || estimasiBurn(planNow, w.durasi);
   w.catatan = document.getElementById("gCatatan").value;
   DB.workouts[tk] = w; save();
   toast(w.durasi >= 30 ? "💪 Mantap, target tercapai!" : "Tersimpan ✓");
@@ -754,17 +797,97 @@ function renderProgram() {
   const area = document.getElementById("programArea");
   const order = [1, 2, 3, 4, 5, 6, 0];
   const today = new Date().getDay();
-  area.innerHTML = `<div class="card tight"><div class="small muted">📅 Ini jadwal <b>saran</b> mingguan. Mau variasi? Ganti program harian kapan saja di tab <b>Hari Ini</b> → "Pilih Program".</div></div>` + order.map(d => {
-    const p = PROGRAM[d];
-    return `<div class="card ${d === today ? "" : ""}" ${d === today ? 'style="border-color:var(--accent)"' : ""}>
+  const pakaiJadwal = DB.jadwal && DB.jadwal.aktif;
+  area.innerHTML = `<div class="card tight"><div class="small muted">📅 ${pakaiJadwal ? "Jadwal <b>otomatis</b>-mu (aktif). Atur di tab <b>Atur Jadwal</b>." : "Jadwal <b>bawaan</b>. Bikin sendiri di tab <b>Atur Jadwal</b>, atau ganti harian di <b>Hari Ini</b>."}</div></div>` + order.map(d => {
+    const p = dayPlan(d);
+    return `<div class="card" ${d === today ? 'style="border-color:var(--accent)"' : ""}>
       <div class="row spread">
         <h3 style="margin:0">${p.emoji} ${NAMA_HARI[d]} — ${p.nama}</h3>
         ${d === today ? '<span class="pill-done">Hari ini</span>' : ""}
       </div>
       <div class="small muted mb">${p.fokus}${p.cardio ? " · 🏃 " + p.cardio.jenis + " " + p.cardio.durasi + "mnt" : ""}</div>
-      ${p.exercises.map(ex => `<div class="row spread small" style="padding:3px 0"><span>• ${ex.n}</span><span class="muted">${ex.d}</span></div>`).join("")}
+      ${(p.exercises || []).map(ex => `<div class="row spread small" style="padding:3px 0"><span>• ${ex.n}</span><span class="muted">${ex.d || ex.set || ""}</span></div>`).join("") || '<div class="small muted">Istirahat 🛌</div>'}
     </div>`;
   }).join("");
+}
+
+/* ---------- UI: ATUR JADWAL OTOMATIS ---------- */
+function renderJadwal() {
+  const area = document.getElementById("jadwalArea"); if (!area) return;
+  const j = DB.jadwal;
+  const order = [1, 2, 3, 4, 5, 6, 0];
+  area.innerHTML = `
+    <div class="card">
+      <h3>⚙️ Buat Jadwal Otomatis</h3>
+      <div class="small muted mb">Pilih level & alatmu, lalu tentukan otot tiap hari. App akan merakit jadwal mingguan + gerakannya otomatis dari ${EXERCISES.length} gerakan.</div>
+      <div class="grid2">
+        <label class="field"><span>Level</span>
+          <select id="jLevel">${Object.keys(LEVELS).map(k => `<option value="${k}" ${j.level === k ? "selected" : ""}>${LEVELS[k].label}</option>`).join("")}</select></label>
+        <label class="field"><span>Peralatan</span>
+          <select id="jAlat">${Object.keys(EQUIP).map(k => `<option value="${k}" ${j.alat === k ? "selected" : ""}>${EQUIP[k].label}</option>`).join("")}</select></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📅 Otot per Hari</h3>
+      <div class="small muted mb">Ketuk grup otot untuk tiap hari (boleh banyak). Pilih "Istirahat" untuk hari libur.</div>
+      ${order.map(day => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+          <b>${NAMA_HARI[day]}</b>
+          <div class="row wrap mt">
+            ${EX_GRUP.concat(["Istirahat"]).map(g => {
+              const on = (j.days[day] || []).includes(g);
+              return `<button class="lvl-chip ${on ? "on" : ""}" onclick="toggleJadwalGrup(${day},'${g}')">${g}</button>`;
+            }).join("")}
+          </div>
+        </div>`).join("")}
+      <button class="btn full green mt" onclick="buatJadwal()">⚡ Buat / Perbarui Jadwal Otomatis</button>
+    </div>
+
+    ${j.aktif ? renderJadwalPreview() : `<div class="empty">Belum ada jadwal otomatis. Atur di atas lalu tap "Buat".</div>`}
+  `;
+}
+function toggleJadwalGrup(day, g) {
+  if (!DB.jadwal.days[day]) DB.jadwal.days[day] = [];
+  const arr = DB.jadwal.days[day];
+  if (g === "Istirahat") {
+    DB.jadwal.days[day] = arr.includes("Istirahat") ? [] : ["Istirahat"];
+  } else {
+    const i = arr.indexOf(g);
+    if (i >= 0) arr.splice(i, 1);
+    else { arr.push(g); const ri = arr.indexOf("Istirahat"); if (ri >= 0) arr.splice(ri, 1); }
+  }
+  save(); renderJadwal();
+}
+function buatJadwal() {
+  DB.jadwal.level = document.getElementById("jLevel").value;
+  DB.jadwal.alat = document.getElementById("jAlat").value;
+  const adaPilihan = Object.values(DB.jadwal.days).some(a => a && a.length);
+  if (!adaPilihan) { toast("Pilih otot untuk minimal 1 hari dulu"); return; }
+  DB.jadwal.generated = generateJadwal(DB.jadwal.level, DB.jadwal.alat, DB.jadwal.days);
+  DB.jadwal.aktif = true;
+  save(); renderJadwal();
+  if (currentView === "home") renderHome();
+  toast("✅ Jadwal mingguan dibuat & aktif!");
+}
+function nonaktifkanJadwal() {
+  DB.jadwal.aktif = false; save(); renderJadwal();
+  toast("Kembali ke jadwal bawaan");
+}
+function renderJadwalPreview() {
+  const j = DB.jadwal, order = [1, 2, 3, 4, 5, 6, 0];
+  return `<div class="card">
+    <div class="row spread"><h3 style="margin:0">✅ Jadwalmu (aktif)</h3>
+      <button class="btn xs ghost" onclick="nonaktifkanJadwal()">Nonaktifkan</button></div>
+    <div class="small muted mb">Otomatis dipakai di "Hari Ini" tiap hari. Level: <b>${LEVELS[j.level].label}</b> · Alat: <b>${EQUIP[j.alat].label}</b></div>
+    ${order.map(day => {
+      const p = (j.generated && j.generated[day]) || { nama: "Istirahat", emoji: "🛌", exercises: [] };
+      return `<div style="padding:7px 0;border-bottom:1px solid var(--border)">
+        <div class="row spread"><b>${NAMA_HARI[day]} — ${p.emoji} ${p.nama}</b><span class="muted small">${(p.exercises || []).length} gerakan</span></div>
+        ${(p.exercises || []).length ? `<div class="small muted">${p.exercises.map(e => e.n).join(" · ")}</div>` : ""}
+      </div>`;
+    }).join("")}
+  </div>`;
 }
 
 function renderGymRiwayat() {
@@ -781,7 +904,7 @@ function renderGymRiwayat() {
     </div>
     ${keys.length ? keys.map(k => {
       const w = DB.workouts[k], d = parseKey(k);
-      const pnama = (PROGRAM_LIB[w.programKey || SCHEDULE[d.getDay()]] || {}).nama || "Latihan";
+      const pnama = (w.programKey && PROGRAM_LIB[w.programKey] ? PROGRAM_LIB[w.programKey] : dayPlan(d.getDay())).nama || "Latihan";
       return `<div class="litem">
         <div class="grow"><b>${NAMA_HARI[d.getDay()]}, ${fmtTgl(k)}</b><div><small>${pnama} · ${w.done.length} gerakan${w.catatan ? " · " + esc(w.catatan) : ""}</small></div></div>
         <div class="center"><b style="color:${w.durasi >= 30 ? "var(--green)" : "var(--accent)"}">${w.durasi || 0}'</b><div><small>${w.kaloriTerbakar || 0} kkal</small></div></div>
@@ -1265,7 +1388,7 @@ function cekNotif() {
 function init() {
   updateGate(); // tentukan gerbang login (cek sesi tersimpan secara sinkron)
   const hari = new Date().getDay();
-  document.getElementById("todayLabel").innerHTML = `${NAMA_HARI[hari]}<br>${PROGRAM[hari].emoji} ${PROGRAM[hari].nama}`;
+  document.getElementById("todayLabel").innerHTML = `${NAMA_HARI[hari]}<br>${dayPlan(hari).emoji} ${dayPlan(hari).nama}`;
   renderHome();
   cekNotif();
   setInterval(cekNotif, 60 * 60 * 1000); // cek tiap jam
